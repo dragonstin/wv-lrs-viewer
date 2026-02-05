@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
+  <title>WV DOT LRS Viewer v12 (Refined)</title>
+
+  <style>
+    html, body, #viewDiv { padding: 0; margin: 0; height: 100%; width: 100%; }
+    
+    #infoPanel {
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      width: 340px;
+      max-height: 60%;
+      background-color: white;
+      padding: 15px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+      border-radius: 8px;
+      overflow-y: auto;
+      font-family: "Avenir Next", "Helvetica Neue", Helvetica, Arial, sans-serif;
+      z-index: 99;
+      display: none; 
+    }
+
+    .panel-header {
+      font-size: 16px;
+      font-weight: bold;
+      margin-bottom: 10px;
+      border-bottom: 2px solid #0079c1;
+      padding-bottom: 5px;
+    }
+
+    .route-card {
+      padding: 10px;
+      margin-bottom: 8px;
+      background-color: #f9f9f9;
+      border-left: 4px solid #ccc;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+
+    .route-card:hover {
+      background-color: #e6f7ff;
+      border-left-color: #0079c1;
+    }
+
+    .route-title { font-weight: bold; font-size: 14px; }
+    .route-detail { font-size: 12px; color: #555; margin-top: 2px; }
+    
+    .measure-badge { 
+      display: inline-block; 
+      background: #0079c1; 
+      color: white; 
+      padding: 2px 6px; 
+      border-radius: 4px; 
+      font-size: 11px; 
+      font-weight: bold;
+      margin-top: 4px;
+    }
+    
+    .dist-badge {
+      display: inline-block;
+      background: #666;
+      color: white;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 10px;
+      margin-top: 4px;
+      margin-left: 5px;
+    }
+  </style>
+
+  <link rel="stylesheet" href="https://js.arcgis.com/4.28/esri/themes/light/main.css" />
+  <script src="https://js.arcgis.com/4.28/"></script>
+
+  <script>
+    require([
+      "esri/Map",
+      "esri/views/MapView",
+      "esri/layers/FeatureLayer",
+      "esri/rest/support/Query",
+      "esri/rest/query",
+      "esri/geometry/Point",
+      "esri/geometry/Polyline",
+      "esri/geometry/geometryEngine",
+      "esri/Graphic",
+      "esri/widgets/BasemapGallery",
+      "esri/widgets/LayerList",
+      "esri/widgets/Expand"
+    ], (Map, MapView, FeatureLayer, Query, query, Point, Polyline, geometryEngine, Graphic, BasemapGallery, LayerList, Expand) => {
+
+      const map = new Map({ basemap: "gray-vector" });
+
+      const view = new MapView({
+        container: "viewDiv",
+        map: map,
+        center: [-81.6326, 38.3498],
+        zoom: 10,
+        popup: { dockEnabled: false, dockOptions: { buttonEnabled: false } } 
+      });
+
+      // 1. VISUAL LAYER
+      const lrsLayer1 = new FeatureLayer({
+        url: "https://gis.transportation.wv.gov/arcgis/rest/services/Routes/FeatureServer/4",
+        title: "Routes"
+      });
+
+ // 1. VISUAL LAYER
+      const lrsLayer2 = new FeatureLayer({
+        url: "https://gis.transportation.wv.gov/arcgis/rest/services/Routes/FeatureServer/5",
+        title: "Routes"
+      });
+
+ // 1. VISUAL LAYER
+      const lrsLayer3 = new FeatureLayer({
+        url: "https://gis.transportation.wv.gov/arcgis/rest/services/Routes/FeatureServer/6",
+        title: "Routes"
+      });
+
+      // 2. DATA SOURCE (MapServer)
+      const mapServerUrl = "https://gis.transportation.wv.gov/arcgis/rest/services/Routes/FeatureServer/5";
+
+      // 3. STREET NAME LAYER
+      const streetLayer = new FeatureLayer({
+        url: "https://gis.transportation.wv.gov/arcgis/rest/services/Roads_And_Highways/Publication_LRS/FeatureServer/118",
+        outFields: ["STREET_NAME"],
+        visible: false,
+        listMode: "hide" 
+      });
+
+      map.add(lrsLayer1);
+      map.add(lrsLayer2);
+      map.add(lrsLayer3);
+      map.add(streetLayer);
+
+      // --- WIDGETS ---
+      const bgExpand = new Expand({ view: view, content: new BasemapGallery({ view: view }), tooltip: "Basemaps" });
+      const llExpand = new Expand({ view: view, content: new LayerList({ view: view }), tooltip: "Layers" });
+      view.ui.add([bgExpand, llExpand], "top-right");
+
+      view.popup.autoOpenEnabled = false;
+
+      // --- MANUAL INTERPOLATION & SNAPPING ---
+      function getMeasureOnLine(lineGeometry, clickPoint) {
+        let bestDistance = Infinity;
+        let bestM = null;
+        let bestPoint = null; 
+
+        for (const path of lineGeometry.paths) {
+          for (let i = 0; i < path.length - 1; i++) {
+            const A = path[i];
+            const B = path[i + 1];
+            const mA = A[A.length - 1]; 
+            const mB = B[B.length - 1];
+
+            if (mA === undefined || mB === undefined) continue;
+
+            const start = new Point({ x: A[0], y: A[1], spatialReference: lineGeometry.spatialReference });
+            const end = new Point({ x: B[0], y: B[1], spatialReference: lineGeometry.spatialReference });
+            
+            const segment = { 
+              type: "polyline", 
+              paths: [[[A[0], A[1]], [B[0], B[1]]]], 
+              spatialReference: lineGeometry.spatialReference 
+            };
+
+            const nearest = geometryEngine.nearestCoordinate(segment, clickPoint);
+            
+            if (nearest.distance < bestDistance) {
+              bestDistance = nearest.distance;
+              bestPoint = nearest.coordinate;
+              
+              const fullLen = geometryEngine.distance(start, end);
+              const partLen = geometryEngine.distance(start, nearest.coordinate);
+              const ratio = (fullLen === 0) ? 0 : (partLen / fullLen);
+
+              bestM = mA + (mB - mA) * ratio;
+            }
+          }
+        }
+        return { m: bestM, distance: bestDistance, snapPoint: bestPoint };
+      }
+
+      function parseRouteInfo(routeID) {
+        if (!routeID || routeID.length < 7) return { number: "N/A", system: "Unknown" };
+        const systemCode = routeID.substring(2, 3);
+        const routeNumStr = routeID.substring(3, 7);
+        const routeNumber = parseInt(routeNumStr, 10);
+        
+        const systemMap = {
+          "1": "Interstate", 
+          "2": "US Highway", 
+          "3": "WV Route", 
+          "4": "Co. Route",
+          "6": "State Park/Forest", 
+          "7": "FANS", 
+          "8": "HARP",
+          "0": "MNS"
+        };
+        return { number: routeNumber, system: systemMap[systemCode] || "System " + systemCode };
+      }
+
+      // --- MAIN CLICK HANDLER ---
+      let clickLocation = null; 
+
+      view.on("click", (event) => {
+        clickLocation = event.mapPoint;
+        view.graphics.removeAll();
+        document.getElementById("infoPanel").style.display = "block";
+        document.getElementById("resultsList").innerHTML = "<p>Searching 30m radius...</p>";
+
+        // 1. BUFFER QUERY (Reduced to 30m)
+        const mQuery = new Query({
+          geometry: event.mapPoint,
+          distance: 30, 
+          units: "meters",
+          spatialRelationship: "intersects",
+          returnGeometry: true,
+          returnM: true,
+          outFields: ["ROUTEID"],
+          outSpatialReference: view.spatialReference
+        });
+
+        const streetQuery = new Query({
+          geometry: event.mapPoint,
+          distance: 30, 
+          units: "meters",
+          spatialRelationship: "intersects",
+          outFields: ["STREET_NAME"],
+          returnGeometry: true
+        });
+
+        Promise.all([
+          query.executeQueryJSON(mapServerUrl, mQuery),
+          streetLayer.queryFeatures(streetQuery)
+        ]).then(([mResults, streetResults]) => {
+
+          const rawRoutes = mResults.features;
+          const streets = streetResults.features;
+
+          if (rawRoutes.length === 0) {
+            document.getElementById("resultsList").innerHTML = "<p>No routes found within 30m.</p>";
+            return;
+          }
+
+          const processedRoutes = rawRoutes.map(graphic => {
+             const calc = getMeasureOnLine(graphic.geometry, event.mapPoint);
+             return {
+               graphic: graphic,
+               id: graphic.attributes.ROUTEID,
+               m: calc.m,
+               dist: calc.distance,
+               snapPoint: calc.snapPoint 
+             };
+          });
+
+          const bestRoutes = {};
+          processedRoutes.forEach(item => {
+            if (!bestRoutes[item.id] || item.dist < bestRoutes[item.id].dist) {
+              bestRoutes[item.id] = item;
+            }
+          });
+
+          // Sort by distance (Closest first)
+          const uniqueRoutes = Object.values(bestRoutes).sort((a, b) => a.dist - b.dist);
+
+          let htmlContent = "";
+          uniqueRoutes.forEach((item, index) => {
+            const routeInfo = parseRouteInfo(item.id);
+            const mDisplay = (item.m !== null) ? item.m.toFixed(3) : "N/A";
+            const distDisplay = Math.round(item.dist); 
+
+            // --- REFINED STREET NAME LOGIC ---
+            // Find closest Street Name geometry to the ROUTE SNAP POINT (not the whole line)
+            let bestStreetName = "Unknown Street";
+            let bestStreetDist = Infinity;
+            
+            // Only consider street names closer than 50 meters to the snap point
+            // This prevents grabbing a name from a parallel road 100m away
+            const MAX_NAME_DIST = 50; 
+
+            streets.forEach(street => {
+              // Check distance from the Snap Point (Point) to the Street Line
+              const d = geometryEngine.distance(item.snapPoint, street.geometry);
+              
+              if (d < bestStreetDist) {
+                bestStreetDist = d;
+                bestStreetName = street.attributes.STREET_NAME || "Unnamed";
+              }
+            });
+
+            // If the closest street name is too far from the actual route, mark as Unknown
+            if (bestStreetDist > MAX_NAME_DIST) {
+               // Optional: Uncomment below to enforce strict matching
+               // bestStreetName = "Unknown (No name nearby)";
+            }
+
+            htmlContent += `
+              <div class="route-card" onmouseover="highlightRoute(${index})" onmouseout="clearHighlight()">
+                <div class="route-title">${routeInfo.system} ${routeInfo.number}</div>
+                <div class="route-detail"><b>ID:</b> ${item.id}</div>
+                <div class="route-detail"><b>Street:</b> ${bestStreetName}</div>
+                <div>
+                  <span class="measure-badge">MP: ${mDisplay}</span>
+                  <span class="dist-badge">${distDisplay}m away</span>
+                </div>
+              </div>
+            `;
+          });
+
+          document.getElementById("resultsList").innerHTML = htmlContent;
+          window.currentData = uniqueRoutes; 
+
+        }).catch(err => {
+          console.error(err);
+          document.getElementById("resultsList").innerHTML = "<p>Error querying data.</p>";
+        });
+      });
+
+      // --- HIGHLIGHT + LEADER LINE ---
+      window.highlightRoute = (index) => {
+        view.graphics.removeAll();
+        if (window.currentData && window.currentData[index]) {
+          const item = window.currentData[index];
+          
+          const routeGraphic = item.graphic.clone();
+          routeGraphic.symbol = {
+            type: "simple-line",
+            color: [0, 255, 255, 0.8],
+            width: 4
+          };
+          view.graphics.add(routeGraphic);
+
+          if (clickLocation && item.snapPoint) {
+            const leaderLine = new Graphic({
+              geometry: new Polyline({
+                paths: [[
+                  [clickLocation.x, clickLocation.y], 
+                  [item.snapPoint.x, item.snapPoint.y]
+                ]],
+                spatialReference: view.spatialReference
+              }),
+              symbol: {
+                type: "simple-line",
+                color: [50, 50, 50, 0.7],
+                width: 1,
+                style: "dash"
+              }
+            });
+            view.graphics.add(leaderLine);
+
+            const snapMarker = new Graphic({
+              geometry: item.snapPoint,
+              symbol: {
+                type: "simple-marker",
+                color: [0, 255, 255],
+                outline: { color: [0, 0, 0], width: 1 },
+                size: 6
+              }
+            });
+            view.graphics.add(snapMarker);
+          }
+        }
+      };
+
+      window.clearHighlight = () => {
+        view.graphics.removeAll();
+      };
+
+    });
+  </script>
+</head>
+<body>
+  <div id="viewDiv"></div>
+  <div id="infoPanel">
+    <div class="panel-header">Route Information</div>
+    <div id="resultsList">Click to search area (30m).</div>
+  </div>
+</body>
+</html>

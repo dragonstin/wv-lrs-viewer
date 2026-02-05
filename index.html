@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
-  <title>WV DOT LRS Viewer v12 (Refined)</title>
+  <title>WV DOT LRS Viewer v13 (Symbology)</title>
 
   <style>
     html, body, #viewDiv { padding: 0; margin: 0; height: 100%; width: 100%; }
@@ -101,26 +101,38 @@
         popup: { dockEnabled: false, dockOptions: { buttonEnabled: false } } 
       });
 
-      // 1. VISUAL LAYER
+      // --- CUSTOM SYMBOLOGY RENDERER ---
+      // We use Arcade to grab the 3rd character of RouteID to determine the System
+      const routeRenderer = {
+        type: "unique-value",
+        valueExpression: "Mid($feature.ROUTEID, 2, 1)", // Arcade: Get 3rd char (index 2)
+        valueExpressionTitle: "Route System",
+        defaultSymbol: { type: "simple-line", color: [150, 150, 150, 0.5], width: 1 }, // Default Gray
+        uniqueValueInfos: [
+          { value: "1", symbol: { type: "simple-line", color: [0, 112, 255, 1], width: 3 }, label: "Interstate" },     // Blue
+          { value: "2", symbol: { type: "simple-line", color: [255, 0, 0, 1], width: 2.5 }, label: "US Highway" },    // Red
+          { value: "3", symbol: { type: "simple-line", color: [0, 0, 0, 1], width: 2 }, label: "WV Route" },       // Black
+          { value: "4", symbol: { type: "simple-line", color: [255, 255, 255, 1], width: 1.5 }, label: "County Route" }, // Grey
+          { value: "6", symbol: { type: "simple-line", color: [115, 38, 0, 1], width: 1.5 }, label: "SP/SF Route" }, // Light Brown
+          { value: "7", symbol: { type: "simple-line", color: [215, 176, 158, 1], width: 1.5 }, label: "FANS" }, // Pale Tan
+          { value: "8", symbol: { type: "simple-line", color: [0, 92, 230, 1], width: 1.5 }, label: "HARP" }, // Light Blue
+          { value: "0", symbol: { type: "simple-line", color: [204, 204, 204, 1], width: 1 }, label: "MNS" }          // LightGrey
+        ]
+      };
+
+      // 1. VISUAL LAYER (Dominant Routes)
       const lrsLayer1 = new FeatureLayer({
-        url: "https://gis.transportation.wv.gov/arcgis/rest/services/Routes/FeatureServer/4",
-        title: "Routes"
+        url: "https://services2.arcgis.com/xLpB90lOmCXYDAWo/arcgis/rest/services/Dominant_Routes/FeatureServer/20",
+        title: "Dominant Routes",
+        renderer: routeRenderer // Apply the custom symbology here
       });
 
- // 1. VISUAL LAYER
-      const lrsLayer2 = new FeatureLayer({
-        url: "https://gis.transportation.wv.gov/arcgis/rest/services/Routes/FeatureServer/5",
-        title: "Routes"
-      });
-
- // 1. VISUAL LAYER
-      const lrsLayer3 = new FeatureLayer({
-        url: "https://gis.transportation.wv.gov/arcgis/rest/services/Routes/FeatureServer/6",
-        title: "Routes"
-      });
-
-      // 2. DATA SOURCE (MapServer)
-      const mapServerUrl = "https://gis.transportation.wv.gov/arcgis/rest/services/Routes/FeatureServer/5";
+      // 2. DATA SOURCE (MapServer) - Keeps using the original for Raw M-values? 
+      // NOTE: You changed lrsLayer1 to an AGOL Hosted Feature Layer. 
+      // Hosted Layers usually strip M-values unless specifically published with them.
+      // If the mapServerUrl below is unrelated to the new Dominant Layer, M-values might not match geometry.
+      // Assuming you still want to query the original MapServer for data:
+      const mapServerUrl = "https://services2.arcgis.com/xLpB90lOmCXYDAWo/arcgis/rest/services/Dominant_Routes/FeatureServer/20";
 
       // 3. STREET NAME LAYER
       const streetLayer = new FeatureLayer({
@@ -131,8 +143,6 @@
       });
 
       map.add(lrsLayer1);
-      map.add(lrsLayer2);
-      map.add(lrsLayer3);
       map.add(streetLayer);
 
       // --- WIDGETS ---
@@ -211,7 +221,7 @@
         document.getElementById("infoPanel").style.display = "block";
         document.getElementById("resultsList").innerHTML = "<p>Searching 30m radius...</p>";
 
-        // 1. BUFFER QUERY (Reduced to 30m)
+        // 1. BUFFER QUERY (30m)
         const mQuery = new Query({
           geometry: event.mapPoint,
           distance: 30, 
@@ -219,7 +229,7 @@
           spatialRelationship: "intersects",
           returnGeometry: true,
           returnM: true,
-          outFields: ["ROUTEID"],
+          outFields: ["ROUTEID"], // Ensure this field matches your new layer!
           outSpatialReference: view.spatialReference
         });
 
@@ -273,28 +283,20 @@
             const distDisplay = Math.round(item.dist); 
 
             // --- REFINED STREET NAME LOGIC ---
-            // Find closest Street Name geometry to the ROUTE SNAP POINT (not the whole line)
             let bestStreetName = "Unknown Street";
             let bestStreetDist = Infinity;
-            
-            // Only consider street names closer than 50 meters to the snap point
-            // This prevents grabbing a name from a parallel road 100m away
             const MAX_NAME_DIST = 50; 
 
             streets.forEach(street => {
-              // Check distance from the Snap Point (Point) to the Street Line
               const d = geometryEngine.distance(item.snapPoint, street.geometry);
-              
               if (d < bestStreetDist) {
                 bestStreetDist = d;
                 bestStreetName = street.attributes.STREET_NAME || "Unnamed";
               }
             });
 
-            // If the closest street name is too far from the actual route, mark as Unknown
             if (bestStreetDist > MAX_NAME_DIST) {
-               // Optional: Uncomment below to enforce strict matching
-               // bestStreetName = "Unknown (No name nearby)";
+               // bestStreetName = "Unknown";
             }
 
             htmlContent += `

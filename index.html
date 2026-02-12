@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
-  <title>WV DOT LRS Viewer v40 (Light Basemap)</title>
+  <title>WV DOT LRS Viewer v44 (Crash Fix)</title>
 
   <style>
     html, body, #viewDiv { padding: 0; margin: 0; height: 100%; width: 100%; }
@@ -75,20 +75,33 @@
 
   <script>
     require([
-      "esri/Map", "esri/views/MapView", "esri/layers/FeatureLayer", "esri/layers/GroupLayer", "esri/Basemap", 
+      "esri/Map", "esri/views/MapView", "esri/layers/FeatureLayer", "esri/layers/GroupLayer", 
+      "esri/Basemap", "esri/layers/TileLayer", "esri/layers/VectorTileLayer",
       "esri/rest/support/Query", "esri/rest/query", "esri/geometry/Point", "esri/geometry/Polyline",
       "esri/geometry/geometryEngine", "esri/Graphic", "esri/widgets/BasemapGallery",
       "esri/widgets/LayerList", "esri/widgets/Expand", "esri/widgets/Home", "esri/widgets/Legend"
-    ], (Map, MapView, FeatureLayer, GroupLayer, Basemap, Query, query, Point, Polyline, geometryEngine, Graphic, BasemapGallery, LayerList, Expand, Home, Legend) => {
+    ], (Map, MapView, FeatureLayer, GroupLayer, Basemap, TileLayer, VectorTileLayer, Query, query, Point, Polyline, geometryEngine, Graphic, BasemapGallery, LayerList, Expand, Home, Legend) => {
 
-      // --- FIX: ENHANCED CONTRAST LIGHT BASEMAP ---
-      // ID: 084291b0ecad4588b8c8853898d72445 is the "Enhanced Contrast Map" (Light version)
+      // 1. ENHANCED CONTRAST (Light)
       const enhancedBasemap = new Basemap({
-        portalItem: {
-          id: "084291b0ecad4588b8c8853898d72445" 
-        }
+        portalItem: { id: "084291b0ecad4588b8c8853898d72445" }, 
+        title: "Enhanced Contrast Light",
+        thumbnailUrl: "https://www.arcgis.com/sharing/rest/content/items/084291b0ecad4588b8c8853898d72445/info/thumbnail/thumbnail1660757236538.png"
       });
 
+      // 2. WV IMAGERY (Custom)
+      const wvImageryLayer = new TileLayer({
+        url: "https://services.wvgis.wvu.edu/arcgis/rest/services/Imagery_BaseMaps_EarthCover/wv_imagery_WVGISTC_leaf_off_mosaic/MapServer"
+      });
+
+      const wvImageryBasemap = new Basemap({
+        baseLayers: [wvImageryLayer],
+        title: "WV Imagery (Leaf-Off)",
+        id: "wv-imagery",
+        thumbnailUrl: "https://services.wvgis.wvu.edu/arcgis/rest/services/Imagery_BaseMaps_EarthCover/wv_imagery_WVGISTC_leaf_off_mosaic/MapServer/info/thumbnail"
+      });
+
+      // 3. INIT MAP
       const map = new Map({ 
         basemap: enhancedBasemap 
       });
@@ -171,12 +184,37 @@
       const builderExpand = new Expand({ view: view, content: document.getElementById("builderPanel"), expandIcon: "hammer", tooltip: "Route Builder", group: "top-right" });
       const searchExpand = new Expand({ view: view, content: document.getElementById("searchPanel"), expandIcon: "search", tooltip: "Search Measure", group: "top-right" });
       const legendExpand = new Expand({ view: view, content: new Legend({ view: view, layerInfos: [{ layer: legendDummy }, { layer: bridgeLayer }] }), tooltip: "Legend", group: "top-right" });
-      const bgExpand = new Expand({ view: view, content: new BasemapGallery({ view: view }), tooltip: "Basemaps", group: "top-right" });
+      
+      // --- FIX: SAFE BASEMAP LIST ---
+      const basemapSource = [
+        wvImageryBasemap,                 
+        enhancedBasemap,                  
+        Basemap.fromId("hybrid"),         
+        Basemap.fromId("streets-vector"), 
+        Basemap.fromId("streets-night-vector"), 
+        Basemap.fromId("streets-navigation-vector"), // Corrected from 'navigation-vector'
+        Basemap.fromId("topo-vector"),          
+        Basemap.fromId("gray-vector"),          
+        Basemap.fromId("dark-gray-vector"),     
+        Basemap.fromId("terrain"),              
+        Basemap.fromId("osm")                   
+      ].filter(b => b); // Removes any 'null' values to prevent crashes
+
+      const bgExpand = new Expand({ 
+        view: view, 
+        content: new BasemapGallery({ 
+          view: view,
+          source: basemapSource
+        }), 
+        tooltip: "Basemaps", 
+        group: "top-right" 
+      });
+
       const llExpand = new Expand({ view: view, content: new LayerList({ view: view }), tooltip: "Layers", group: "top-right" });
 
       view.ui.add([bridgeExpand, builderExpand, searchExpand, legendExpand, bgExpand, llExpand], "top-right");
 
-      // --- HELPERS ---
+      // --- HELPERS (Unchanged) ---
       function getMeasureOnLine(g, p) { 
          let bestD=Infinity, bestM=null, bestP=null;
          g.paths.forEach(pth => { for(let i=0; i<pth.length-1; i++) {

@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
-  <title>WV DOT LRS Viewer v37 (Multi-Part Routes)</title>
+  <title>WV DOT LRS Viewer v40 (Light Basemap)</title>
 
   <style>
     html, body, #viewDiv { padding: 0; margin: 0; height: 100%; width: 100%; }
@@ -75,13 +75,24 @@
 
   <script>
     require([
-      "esri/Map", "esri/views/MapView", "esri/layers/FeatureLayer", "esri/layers/GroupLayer",
+      "esri/Map", "esri/views/MapView", "esri/layers/FeatureLayer", "esri/layers/GroupLayer", "esri/Basemap", 
       "esri/rest/support/Query", "esri/rest/query", "esri/geometry/Point", "esri/geometry/Polyline",
       "esri/geometry/geometryEngine", "esri/Graphic", "esri/widgets/BasemapGallery",
       "esri/widgets/LayerList", "esri/widgets/Expand", "esri/widgets/Home", "esri/widgets/Legend"
-    ], (Map, MapView, FeatureLayer, GroupLayer, Query, query, Point, Polyline, geometryEngine, Graphic, BasemapGallery, LayerList, Expand, Home, Legend) => {
+    ], (Map, MapView, FeatureLayer, GroupLayer, Basemap, Query, query, Point, Polyline, geometryEngine, Graphic, BasemapGallery, LayerList, Expand, Home, Legend) => {
 
-      const map = new Map({ basemap: "gray-vector" });
+      // --- FIX: ENHANCED CONTRAST LIGHT BASEMAP ---
+      // ID: 084291b0ecad4588b8c8853898d72445 is the "Enhanced Contrast Map" (Light version)
+      const enhancedBasemap = new Basemap({
+        portalItem: {
+          id: "084291b0ecad4588b8c8853898d72445" 
+        }
+      });
+
+      const map = new Map({ 
+        basemap: enhancedBasemap 
+      });
+
       const view = new MapView({
         container: "viewDiv", map: map,
         center: [-81.6326, 38.3498], zoom: 10,
@@ -187,6 +198,7 @@
       function getPointAtMeasure(g, t) { for(const p of g.paths){ for(let i=0; i<p.length-1; i++){ const A=p[i], B=p[i+1], mA=A[A.length-1], mB=B[B.length-1]; if(mA===undefined) continue; const min=Math.min(mA,mB), max=Math.max(mA,mB); if(t>=min && t<=max){ const r=(mB-mA===0)?0:(t-mA)/(mB-mA); return new Point({x:A[0]+(B[0]-A[0])*r, y:A[1]+(B[1]-A[1])*r, spatialReference:g.spatialReference}); } } } return null; }
       function sliceRouteByMeasure(g, s, e) { const min=Math.min(s,e), max=Math.max(s,e), paths=[]; g.paths.forEach(p=>{ let pts=[]; for(let i=0; i<p.length-1; i++){ const A=p[i], B=p[i+1], mA=A[A.length-1], mB=B[B.length-1]; if(mA===undefined) continue; const segMin=Math.min(mA,mB), segMax=Math.max(mA,mB); if(Math.max(min,segMin)<=Math.min(max,segMax)){ const r=(mB-mA===0)?0:1/(mB-mA); let p1=A; if(min>segMin && min<segMax) p1=[A[0]+(B[0]-A[0])*(min-mA)*r, A[1]+(B[1]-A[1])*(min-mA)*r]; let p2=B; if(max>segMin && max<segMax) p2=[A[0]+(B[0]-A[0])*(max-mA)*r, A[1]+(B[1]-A[1])*(max-mA)*r]; if(pts.length===0) pts.push(p1); pts.push(p2); } } if(pts.length>0) paths.push(pts); }); return (paths.length>0)?new Polyline({paths:paths, spatialReference:g.spatialReference}):null; }
       function createLabel(pt, txt) { return new Graphic({ geometry:pt, symbol: { type:"text", color:"black", haloColor:"white", haloSize:1, text:txt, yoffset:10, font:{size:10, weight:"bold"} } }); }
+      
       function parseRouteInfo(id) { 
         if (!id || id.length < 7) return { number: "?", system: "Unknown" };
         let numStr = parseInt(id.substring(3,7)).toString();
@@ -261,7 +273,7 @@
         });
       });
 
-      // 2. Route Search & Measure (UPDATED: Multi-part Logic)
+      // 2. Route Search & Measure
       function executeRouteSearch(rID, bmp, emp) {
          view.graphics.removeAll();
          document.getElementById("infoPanel").style.display = "block";
@@ -272,10 +284,9 @@
          query.executeQueryJSON(lrsLayerUrl, q).then(results => {
             if (results.features.length === 0) { alert("Route not found."); document.getElementById("resultsList").innerHTML = ""; return; }
             
-            // --- MULTI-PART FIX: UNION GEOMETRIES ---
             const allGeoms = results.features.map(f => f.geometry);
-            const mergedGeo = geometryEngine.union(allGeoms); // Merge disjoint segments
-            const bounds = getMeasureBounds(mergedGeo); // Calc Min/Max across all segments
+            const mergedGeo = geometryEngine.union(allGeoms); 
+            const bounds = getMeasureBounds(mergedGeo); 
             
             const hasBMP = (bmp !== undefined && !isNaN(bmp)); const hasEMP = (emp !== undefined && !isNaN(emp));
             const info = parseRouteInfo(rID);
@@ -290,15 +301,15 @@
             </div>`;
 
             if (!hasBMP && !hasEMP) {
-               view.goTo(mergedGeo); // Zoom to full merged route
+               view.goTo(mergedGeo);
                view.graphics.add(new Graphic({ geometry: mergedGeo, symbol: { type: "simple-line", color: [0, 255, 255, 0.8], width: 6 } }));
                if(bounds.startPoint) view.graphics.add(createLabel(bounds.startPoint, bounds.minM.toFixed(3)));
                if(bounds.endPoint) view.graphics.add(createLabel(bounds.endPoint, bounds.maxM.toFixed(3)));
             } else if (hasBMP && !hasEMP) {
-               const p = getPointAtMeasure(mergedGeo, bmp); // Pass merged geometry
+               const p = getPointAtMeasure(mergedGeo, bmp);
                if(p) { view.goTo({ target: p, zoom: 16 }); view.graphics.add(new Graphic({ geometry: p, symbol: { type: "simple-marker", color: "red", size: 10, outline: {color:"black"} } })); view.graphics.add(createLabel(p, bmp.toFixed(3))); }
             } else if (hasBMP && hasEMP) {
-               const seg = sliceRouteByMeasure(mergedGeo, bmp, emp); // Pass merged geometry
+               const seg = sliceRouteByMeasure(mergedGeo, bmp, emp);
                if(seg) { view.goTo(seg); view.graphics.add(new Graphic({ geometry: seg, symbol: { type: "simple-line", color: [255, 0, 0, 1], width: 4 } })); 
                const p1 = getPointAtMeasure(mergedGeo, bmp); const p2 = getPointAtMeasure(mergedGeo, emp);
                if(p1) view.graphics.add(createLabel(p1, bmp.toFixed(3))); if(p2) view.graphics.add(createLabel(p2, emp.toFixed(3))); }

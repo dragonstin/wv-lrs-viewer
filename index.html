@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
-  <title>WV DOT LRS Viewer v49 (Strict Padding)</title>
+  <title>WV DOT LRS Viewer v58 (G2M Parity)</title>
 
   <style>
     html, body, #viewDiv { padding: 0; margin: 0; height: 100%; width: 100%; font-family: "Avenir Next", "Helvetica Neue", Helvetica, Arial, sans-serif; }
@@ -76,12 +76,16 @@
     }
     .modal-content {
       background-color: #fefefe; margin: 5% auto; padding: 20px; border: 1px solid #888;
-      width: 80%; max-width: 600px; max-height: 80%; overflow-y: auto; border-radius: 8px;
+      width: 90%; max-width: 700px; max-height: 85%; overflow-y: auto; border-radius: 8px;
     }
-    .modal-head { font-size: 18px; font-weight: bold; border-bottom: 1px solid #ddd; padding-bottom: 10px; margin-bottom: 10px; }
-    .data-row { border-bottom: 1px solid #eee; padding: 6px 0; display: flex; }
-    .data-label { font-weight: bold; width: 40%; color: #555; }
-    .data-val { width: 60%; }
+    .modal-head { font-size: 18px; font-weight: bold; border-bottom: 2px solid #0079c1; padding-bottom: 10px; margin-bottom: 15px; color: #333; }
+    
+    /* Exact G2M List Styling */
+    .modal-list { list-style: none; padding: 0; margin: 0; font-size: 13px; line-height: 1.6; }
+    .modal-list li { padding: 6px 0; border-bottom: 1px solid #eee; display: flex; }
+    .modal-list li b { display: inline-block; width: 50%; color: #444; }
+    .modal-list li span { width: 50%; color: #111; }
+
     .details-btn {
       margin-top: 8px; padding: 6px 12px; background-color: #0079c1; color: white;
       border: none; border-radius: 4px; cursor: pointer; font-size: 12px;
@@ -122,9 +126,7 @@
       });
 
       // 3. INIT MAP
-      const map = new Map({ 
-        basemap: enhancedBasemap 
-      });
+      const map = new Map({ basemap: enhancedBasemap });
 
       const view = new MapView({
         container: "viewDiv", map: map,
@@ -137,7 +139,9 @@
       const bridgeLayerUrl = "https://gis.transportation.wv.gov/arcgis/rest/services/Roads_And_Highways/Publication_LRS/FeatureServer/113";
       const streetLayerUrl = "https://gis.transportation.wv.gov/arcgis/rest/services/Roads_And_Highways/Publication_LRS/FeatureServer/118";
       
-      const rilApiBaseUrl = "https://gis.transportation.wv.gov/api/ril"; 
+      // THE CORRECT G2M API ENDPOINTS
+      const rillrsRouteUrl = "https://gis.transportation.wv.gov/api/rillrs/route/"; 
+      const rillrsDetailsUrl = "https://gis.transportation.wv.gov/api/rillrs/details/";
 
       const systemMap = { "1": "Interstate", "2": "US Highway", "3": "WV Route", "4": "Co. Route", "6": "State Park/Forest", "7": "FANS", "8": "HARP", "0": "MNS" };
       const countyMap = { "01": "Barbour", "02": "Berkeley", "03": "Boone", "04": "Braxton", "05": "Brooke", "06": "Cabell", "07": "Calhoun", "08": "Clay", "09": "Doddridge", "10": "Fayette", "11": "Gilmer", "12": "Grant", "13": "Greenbrier", "14": "Hampshire", "15": "Hancock", "16": "Hardy", "17": "Harrison", "18": "Jackson", "19": "Jefferson", "20": "Kanawha", "21": "Lewis", "22": "Lincoln", "23": "Logan", "24": "Marion", "25": "Marshall", "26": "Mason", "27": "McDowell", "28": "Mercer", "29": "Mineral", "30": "Mingo", "31": "Monongalia", "32": "Monroe", "33": "Morgan", "34": "Nicholas", "35": "Ohio", "36": "Pendleton", "37": "Pleasants", "38": "Pocahontas", "39": "Preston", "40": "Putnam", "41": "Raleigh", "42": "Randolph", "43": "Ritchie", "44": "Roane", "45": "Summers", "46": "Taylor", "47": "Tucker", "48": "Tyler", "49": "Upshur", "50": "Wayne", "51": "Webster", "52": "Wetzel", "53": "Wirt", "54": "Wood", "55": "Wyoming" };
@@ -168,162 +172,151 @@
       const layerMiddle = new FeatureLayer({ url: lrsLayerUrl, renderer: routeRenderer, minScale: 2000000, title: "State Routes", legendEnabled: false, definitionExpression: "ROUTEID LIKE '__2%' OR ROUTEID LIKE '__3%'" });
       const layerTop = new FeatureLayer({ url: lrsLayerUrl, renderer: routeRenderer, minScale: 0, title: "Interstates", legendEnabled: false, definitionExpression: "ROUTEID LIKE '__1%'" });
       const legendDummy = new FeatureLayer({ url: lrsLayerUrl, title: "West Virginia Routes", renderer: routeRenderer, definitionExpression: "1=0", listMode: "hide", legendEnabled: true });
-      const streetLayer = new FeatureLayer({ url: streetLayerUrl, outFields: ["STREET_NAME"], visible: false, listMode: "hide" });
+      const streetLayer = new FeatureLayer({ url: streetLayerUrl, outFields: ["STREET_NAME"], visible: false, listMode: "hide", definitionExpression: "RH_TO_DATE IS NULL" });
       const bridgeLayer = new FeatureLayer({ url: bridgeLayerUrl, title: "Bridges", outFields: ["*"], definitionExpression: "RH_TO_DATE IS NULL", minScale: 50000, renderer: { type: "simple", symbol: { type: "simple-marker", style: "square", color: "orange", outline: { color: "black", width: 1 }, size: 7 } } });
 
       map.addMany([layerBottom, layerMiddle, layerTop, legendDummy, streetLayer, bridgeLayer]);
 
       // --- UI SETUP ---
       view.ui.add(new Home({ view: view }), "top-left");
-      
       const bridgeExpand = new Expand({ view: view, content: document.getElementById("bridgePanel"), expandIcon: "magnifying-glass", tooltip: "Find Bridge", group: "top-right" });
       const builderExpand = new Expand({ view: view, content: document.getElementById("builderPanel"), expandIcon: "hammer", tooltip: "Route Builder", group: "top-right" });
       const searchExpand = new Expand({ view: view, content: document.getElementById("searchPanel"), expandIcon: "search", tooltip: "Search Measure", group: "top-right" });
       const legendExpand = new Expand({ view: view, content: new Legend({ view: view, layerInfos: [{ layer: legendDummy }, { layer: bridgeLayer }] }), tooltip: "Legend", group: "top-right" });
-      
-      const basemapSource = [
-        wvImageryBasemap, enhancedBasemap, Basemap.fromId("hybrid"), Basemap.fromId("streets-vector"), 
-        Basemap.fromId("streets-night-vector"), Basemap.fromId("streets-navigation-vector"), Basemap.fromId("topo-vector"),          
-        Basemap.fromId("gray-vector"), Basemap.fromId("dark-gray-vector"), Basemap.fromId("terrain"), Basemap.fromId("osm")                   
-      ].filter(b => b); 
-
+      const basemapSource = [wvImageryBasemap, enhancedBasemap, Basemap.fromId("hybrid"), Basemap.fromId("streets-vector"), Basemap.fromId("streets-night-vector"), Basemap.fromId("streets-navigation-vector"), Basemap.fromId("topo-vector"), Basemap.fromId("gray-vector"), Basemap.fromId("dark-gray-vector"), Basemap.fromId("terrain"), Basemap.fromId("osm")].filter(b => b); 
       const bgExpand = new Expand({ view: view, content: new BasemapGallery({ view: view, source: basemapSource }), tooltip: "Basemaps", group: "top-right" });
       const llExpand = new Expand({ view: view, content: new LayerList({ view: view }), tooltip: "Layers", group: "top-right" });
-
       view.ui.add([bridgeExpand, builderExpand, searchExpand, legendExpand, bgExpand, llExpand], "top-right");
 
       // --- HELPERS (Measures & Geometry) ---
-      function getMeasureOnLine(g, p) { 
-         let bestD=Infinity, bestM=null, bestP=null;
-         g.paths.forEach(pth => { for(let i=0; i<pth.length-1; i++) {
-            const A=pth[i], B=pth[i+1], mA=A[A.length-1], mB=B[B.length-1];
-            if(mA===undefined) continue;
-            const seg = { type:"polyline", paths:[[[A[0],A[1]],[B[0],B[1]]]], spatialReference:g.spatialReference };
-            const n = geometryEngine.nearestCoordinate(seg, p);
-            if(n.distance < bestD) {
-               bestD = n.distance; bestP = n.coordinate;
-               const full = geometryEngine.distance(new Point({x:A[0],y:A[1],spatialReference:g.spatialReference}), new Point({x:B[0],y:B[1],spatialReference:g.spatialReference}));
-               const part = geometryEngine.distance(new Point({x:A[0],y:A[1],spatialReference:g.spatialReference}), n.coordinate);
-               const r = (full===0)?0:part/full;
-               bestM = mA + (mB-mA)*r;
-            }
-         }});
-         return {m:bestM, distance:bestD, snapPoint:bestP};
-      }
+      function getMeasureOnLine(g, p) { let bestD=Infinity, bestM=null, bestP=null; g.paths.forEach(pth => { for(let i=0; i<pth.length-1; i++) { const A=pth[i], B=pth[i+1], mA=A[A.length-1], mB=B[B.length-1]; if(mA===undefined) continue; const seg = { type:"polyline", paths:[[[A[0],A[1]],[B[0],B[1]]]], spatialReference:g.spatialReference }; const n = geometryEngine.nearestCoordinate(seg, p); if(n.distance < bestD) { bestD = n.distance; bestP = n.coordinate; const full = geometryEngine.distance(new Point({x:A[0],y:A[1],spatialReference:g.spatialReference}), new Point({x:B[0],y:B[1],spatialReference:g.spatialReference})); const part = geometryEngine.distance(new Point({x:A[0],y:A[1],spatialReference:g.spatialReference}), n.coordinate); const r = (full===0)?0:part/full; bestM = mA + (mB-mA)*r; } }}); return {m:bestM, distance:bestD, snapPoint:bestP}; }
       function getMeasureBounds(g) { let min=Infinity, max=-Infinity, start=null, end=null; g.paths.forEach(p=>p.forEach(pt=>{ const m=pt[pt.length-1]; if(m!==undefined){ if(m<min){min=m; start=new Point({x:pt[0],y:pt[1],spatialReference:g.spatialReference});} if(m>max){max=m; end=new Point({x:pt[0],y:pt[1],spatialReference:g.spatialReference});} } })); return {minM:min, maxM:max, startPoint:start, endPoint:end}; }
       function getPointAtMeasure(g, t) { for(const p of g.paths){ for(let i=0; i<p.length-1; i++){ const A=p[i], B=p[i+1], mA=A[A.length-1], mB=B[B.length-1]; if(mA===undefined) continue; const min=Math.min(mA,mB), max=Math.max(mA,mB); if(t>=min && t<=max){ const r=(mB-mA===0)?0:(t-mA)/(mB-mA); return new Point({x:A[0]+(B[0]-A[0])*r, y:A[1]+(B[1]-A[1])*r, spatialReference:g.spatialReference}); } } } return null; }
       function sliceRouteByMeasure(g, s, e) { const min=Math.min(s,e), max=Math.max(s,e), paths=[]; g.paths.forEach(p=>{ let pts=[]; for(let i=0; i<p.length-1; i++){ const A=p[i], B=p[i+1], mA=A[A.length-1], mB=B[B.length-1]; if(mA===undefined) continue; const segMin=Math.min(mA,mB), segMax=Math.max(mA,mB); if(Math.max(min,segMin)<=Math.min(max,segMax)){ const r=(mB-mA===0)?0:1/(mB-mA); let p1=A; if(min>segMin && min<segMax) p1=[A[0]+(B[0]-A[0])*(min-mA)*r, A[1]+(B[1]-A[1])*(min-mA)*r]; let p2=B; if(max>segMin && max<segMax) p2=[A[0]+(B[0]-A[0])*(max-mA)*r, A[1]+(B[1]-A[1])*(max-mA)*r]; if(pts.length===0) pts.push(p1); pts.push(p2); } } if(pts.length>0) paths.push(pts); }); return (paths.length>0)?new Polyline({paths:paths, spatialReference:g.spatialReference}):null; }
       function createLabel(pt, txt) { return new Graphic({ geometry:pt, symbol: { type:"text", color:"black", haloColor:"white", haloSize:1, text:txt, yoffset:10, font:{size:10, weight:"bold"} } }); }
-      
-      function parseRouteInfo(id) { 
-        if (!id || id.length < 7) return { number: "?", system: "Unknown" };
-        let numStr = parseInt(id.substring(3,7)).toString();
-        const sub = parseInt(id.substring(7,9));
-        if (sub > 0) numStr += "/" + sub;
-        const sysCode = id.substring(2,3);
-        const supp = id.substring(9,11);
-        let sysName = systemMap[sysCode] || "System " + sysCode;
-        if (supp === '24') sysName = "Proposed " + sysName;
-        return { number: numStr, system: sysName }; 
-      }
+      function parseRouteInfo(id) { if (!id || id.length < 7) return { number: "?", system: "Unknown" }; let numStr = parseInt(id.substring(3,7)).toString(); const sub = parseInt(id.substring(7,9)); if (sub > 0) numStr += "/" + sub; const sysCode = id.substring(2,3); const supp = id.substring(9,11); let sysName = systemMap[sysCode] || "System " + sysCode; if (supp === '24') sysName = "Proposed " + sysName; return { number: numStr, system: sysName }; }
 
-      window.highlightRoute = (idx) => {
-         view.graphics.removeAll();
-         if(window.currentData && window.currentData[idx]) {
-            const d = window.currentData[idx];
-            view.graphics.add(new Graphic({ geometry: d.graphic.geometry, symbol: { type:"simple-line", color:[0,255,255,0.8], width:4 } }));
-            if(window.clickLoc && d.snap) {
-               view.graphics.add(new Graphic({ geometry: new Polyline({paths:[[[window.clickLoc.x, window.clickLoc.y], [d.snap.x, d.snap.y]]], spatialReference:view.spatialReference}), symbol:{type:"simple-line", color:[50,50,50], style:"dash"} }));
-               view.graphics.add(new Graphic({ geometry: d.snap, symbol: { type:"simple-marker", color:[0,255,255], outline:{color:"black"}, size:6 } }));
-            }
-         }
-      };
+      window.highlightRoute = (idx) => { view.graphics.removeAll(); if(window.currentData && window.currentData[idx]) { const d = window.currentData[idx]; view.graphics.add(new Graphic({ geometry: d.graphic.geometry, symbol: { type:"simple-line", color:[0,255,255,0.8], width:4 } })); if(window.clickLoc && d.snap) { view.graphics.add(new Graphic({ geometry: new Polyline({paths:[[[window.clickLoc.x, window.clickLoc.y], [d.snap.x, d.snap.y]]], spatialReference:view.spatialReference}), symbol:{type:"simple-line", color:[50,50,50], style:"dash"} })); view.graphics.add(new Graphic({ geometry: d.snap, symbol: { type:"simple-marker", color:[0,255,255], outline:{color:"black"}, size:6 } })); } } };
       window.clearHighlight = () => { view.graphics.removeAll(); };
       window.zoomToBridge = (oid) => { if (window.currentBridgeResults) { const b = window.currentBridgeResults.find(f => f.attributes.OBJECTID === oid); if (b) view.goTo({ target: b.geometry, zoom: 18 }); } };
 
-      // --- API FETCH FUNCTION (FIXED with STRICT PADDING & 2-STEP CHAIN) ---
-      window.fetchRilDetails = (routeId, measure) => {
+      // --- API FETCH FUNCTION (EXACT G2M INTEGRATION) ---
+      window.fetchRilDetails = async (routeId, measure) => {
         const modal = document.getElementById("detailsModal");
         const content = document.getElementById("modalDataContent");
         modal.style.display = "block";
-        content.innerHTML = "<p>Loading data from RIL API...</p>";
+        content.innerHTML = "<p>Loading data from RIL database...</p>";
 
         try {
-          const county = routeId.substring(0, 2);
+          // 1. MNS Check (Skipping API for System 0)
+          const system = routeId.substring(2, 3);
+          if (system === "0") {
+             content.innerHTML = `<div class="modal-head">MNS Route</div><p>No data is maintained in the RIL database for MNS routes.</p>`;
+             return;
+          }
+
+          // 2. Initial RILLRS Route Query
+          const timestamp = new Date().getTime();
+          const initUrl = `${rillrsRouteUrl}${routeId}?_=${timestamp}`;
+
+          const routeRes = await fetch(initUrl);
+          if (!routeRes.ok) throw new Error(`Initial Query failed: ${routeRes.status}`);
+          const routeData = await routeRes.json();
+
+          if (!routeData || routeData.length === 0) {
+             content.innerHTML = `<div class="modal-head">Route Not Found</div><p>Route <b>${routeId}</b> returned no records.</p>`;
+             return;
+          }
+
+          // 3. Filter matched segment
+          const targetMeasure = Math.abs(measure); 
+          const matchedSegment = routeData.find(ril => {
+              const start = parseFloat(ril.StartingMilepoint);
+              const end = parseFloat(ril.EndingMilepoint);
+              return (targetMeasure >= start - 0.001) && (targetMeasure <= end + 0.001);
+          });
+
+          if (!matchedSegment) {
+              let min = Infinity, max = -Infinity;
+              routeData.forEach(seg => { let s = parseFloat(seg.StartingMilepoint); let e = parseFloat(seg.EndingMilepoint); if(s < min) min = s; if(e > max) max = e; });
+              content.innerHTML = `<div class="modal-head" style="color:#d9534f;">Segment Not Found</div><p>No information in the RIL database for this exact location.</p><p style="background:#f9f9f9; padding:8px; border-left:4px solid #d9534f;"><b>Valid Range:</b> ${min.toFixed(3)} to ${max.toFixed(3)}</p>`;
+              return;
+          }
+
+          // 4. Fetch Deep Details using DetailID
+          const detailId = matchedSegment.DetailID;
+          if (!detailId) {
+             content.innerHTML = `<div class="modal-head">Details Unavailable</div><p>No DetailID found for this segment.</p>`;
+             return;
+          }
+
+          const detailsUrl = `${rillrsDetailsUrl}${detailId}?_=${timestamp}`;
+          const detailsRes = await fetch(detailsUrl);
+          if (!detailsRes.ok) throw new Error(`Details Query failed: ${detailsRes.status}`);
+          const detailsData = await detailsRes.json();
           
-          // FIX 1: Strict 3-digit Route Number (e.g. 77 -> 077)
-          const route = parseInt(routeId.substring(3, 7), 10).toString().padStart(3, '0');
-          
-          // FIX 2: Strict 2-digit SubRoute Number (e.g. 0 -> 00)
-          const subroute = parseInt(routeId.substring(7, 9), 10).toString().padStart(2, '0');
-          
-          // FIX 3: Absolute value for measure (removes negative zero)
-          const safeMeasure = Math.abs(measure); 
-          const mpFormatted = safeMeasure.toFixed(2).padStart(6, '0');
+          const d = Array.isArray(detailsData) ? detailsData[0] : detailsData;
 
-          // 1. Initial Query URL (Location)
-          const queryUrl = `${rilApiBaseUrl}/route/${county}/${route}/${subroute}/${mpFormatted}`;
-          console.log("Step 1 Query:", queryUrl);
+          if (!d) {
+             content.innerHTML = `<div class="modal-head">Details Unavailable</div><p>Extended details could not be retrieved.</p>`;
+             return;
+          }
 
-          fetch(queryUrl)
-            .then(res => {
-              if (!res.ok) throw new Error(`Query failed: ${res.status}`);
-              return res.json();
-            })
-            .then(queryData => {
-              // Get the first result from the array
-              const record = Array.isArray(queryData) ? queryData[0] : queryData;
-              
-              if (!record || !record.id) {
-                 content.innerHTML = "<p>No primary record found for this location.</p>";
-                 return;
-              }
+          // Safe value helper to avoid printing 'null' or 'undefined'
+          const v = (val) => (val == null) ? "N/A" : val;
 
-              const recId = record.id;
-              
-              // 2. Secondary Details URL (Full Data)
-              const detailsUrl = `${rilApiBaseUrl}/details/${recId}`;
-              console.log("Step 2 Details:", detailsUrl);
+          // 5. Build Modal Exactly like G2M
+          let html = `<div class="modal-head">Details for ${v(d.County)} county | Route ${v(d.Route)} | Subroute ${v(d.SubRoute)}</div>`;
+          html += `<ul class="modal-list">`;
+          html += `<li><b>Route ID:</b> <span>${v(d.RouteID)}</span></li>`;
+          html += `<li><b>Sign System:</b> <span>${v(d.SignSystemCode)} - ${v(d.SignSystem)}</span></li>`;
+          html += `<li><b>District:</b> <span>${v(d.District)}</span></li>`;
+          html += `<li><b>Starting Milepoint:</b> <span>${v(d.StartingMilepoint)} Mile(s)</span></li>`;
+          html += `<li><b>Length:</b> <span>${v(d.Length)} Mile(s)</span></li>`;
+          html += `<li><b>Ending Milepoint:</b> <span>${v(d.EndingMilepoint)} Mile(s)</span></li>`;
+          html += `<li><b>Surface Type:</b> <span>${v(d.SurfTypeCode)} - ${v(d.SurfType)}</span></li>`;
+          html += `<li><b>Suppl. Designation:</b> <span>${v(d.SRDCode)} - ${v(d.SRD)}</span></li>`;
+          html += `<li><b>Year of Survey/Change:</b> <span>${v(d.YearSurvey)}</span></li>`;
+          html += `<li><b>Annual Average Daily Traffic (AADT):</b> <span>${v(d.AADT)} Vehicles/Day</span></li>`;
+          html += `<li><b>Year of AADT:</b> <span>${v(d.AADT_Year)}</span></li>`;
+          html += `<li><b>Pavement Width:</b> <span>${v(d.PavementWidth)}'</span></li>`;
+          html += `<li><b>Grade Width:</b> <span>${v(d.GradeWidth)}'</span></li>`;
+          html += `<li><b>Number of Lanes:</b> <span>${v(d.NumberLanes)}</span></li>`;
+          html += `<li><b>Access Control:</b> <span>${v(d.AccessControlCode)} - ${v(d.AccessControl)}</span></li>`;
+          html += `<li><b>Designated Truck Route:</b> <span>${v(d.DesTruckRouteCode)} - ${v(d.DesTruckRoute)}</span></li>`;
+          html += `<li><b>Type of Facility:</b> <span>${v(d.FacilityTypeCode)} - ${v(d.FacilityType)}</span></li>`;
+          html += `<li><b>Federal Aid:</b> <span>${v(d.FASCode)} - ${v(d.FAS)}</span></li>`;
+          html += `<li><b>Federal Forest Highway:</b> <span>${v(d.FFHCode)} - ${v(d.FFH)}</span></li>`;
+          html += `<li><b>GovID:</b> <span>${v(d.GovIDCode)} - ${v(d.GovID)}</span></li>`;
+          html += `<li><b>Urban Area Code (DOH):</b> <span>${v(d.UrbanAreaDOHCode)} - ${v(d.UrbanAreaDOH)}</span></li>`;
+          html += `<li><b>Urban Area Code (Census):</b> <span>${v(d.UrbanAreaCensusCode)} - ${v(d.UrbanAreaCensus)}</span></li>`;
+          html += `<li><b>Rural-Urban:</b> <span>${v(d.RuralUrbanCode)} - ${v(d.RuralUrban)}</span></li>`;
+          html += `<li><b>Rural-Municipal:</b> <span>${v(d.RuralMunicipalCode)} - ${v(d.RuralMunicipal)}</span></li>`;
+          html += `<li><b>National Highway Functional Classification:</b> <span>${v(d.FSystemCode)} - ${v(d.FSystem)}</span></li>`;
+          html += `<li><b>National Highway System (NHS):</b> <span>${v(d.NHSCode)} - ${v(d.NHS)}</span></li>`;
+          html += `<li><b>Reversible Lanes:</b> <span>${v(d.ReversibleLanesCode)} - ${v(d.ReversibleLanes)}</span></li>`;
+          html += `<li><b>Special Systems:</b> <span>${v(d.SpecialSystemsCode)} - ${v(d.SpecialSystems)}</span></li>`;
+          html += `<li><b>West Virginia Legal Functional Classification:</b> <span>${v(d.WVLFCCode)} - ${v(d.WVLFC)}</span></li>`;
+          html += `</ul>`;
 
-              return fetch(detailsUrl).then(res => res.json());
-            })
-            .then(detailsData => {
-              // Render the FULL details
-              let html = `<div class="modal-head">Details for Route ${routeId} @ MP ${mpFormatted}</div>`;
-              const attributes = Array.isArray(detailsData) ? detailsData[0] : detailsData;
+          content.innerHTML = html;
 
-              if (!attributes) {
-                 content.innerHTML = "<p>Record ID found, but details fetch failed.</p>";
-                 return;
-              }
-
-              for (const [key, value] of Object.entries(attributes)) {
-                 if (key !== "geometry" && key !== "SHAPE") {
-                    html += `<div class="data-row"><div class="data-label">${key}</div><div class="data-val">${value}</div></div>`;
-                 }
-              }
-              content.innerHTML = html;
-            })
-            .catch(error => {
-              console.error("API Error:", error);
-              content.innerHTML = `<p style="color:red;">API Error: ${error.message}</p>`;
-            });
-
-        } catch (e) {
-           console.error("Parsing error:", e);
-           content.innerHTML = "<p style='color:red;'>Error parsing Route ID.</p>";
+        } catch (error) {
+           console.error("API Fetch Error:", error);
+           content.innerHTML = `<p style="color:red;">API Network Error: ${error.message}</p>`;
         }
       };
 
+      // Modal Close Listeners
       document.querySelector(".close-icon-modal").addEventListener("click", () => { document.getElementById("detailsModal").style.display = "none"; });
       window.onclick = function(event) { if (event.target == document.getElementById("detailsModal")) { document.getElementById("detailsModal").style.display = "none"; } }
 
-      // --- CORE LOGIC ---
+      // --- MAP CLICK LOGIC ---
       view.on("click", (event) => {
         document.getElementById("infoPanel").style.display = "block";
         document.getElementById("resultsList").innerHTML = "<p>Searching...</p>";
         const mQuery = new Query({ geometry: event.mapPoint, distance: 30, units: "meters", spatialRelationship: "intersects", returnGeometry: true, returnM: true, outFields: ["ROUTEID"], outSpatialReference: view.spatialReference });
-        const streetQuery = new Query({ geometry: event.mapPoint, distance: 30, units: "meters", spatialRelationship: "intersects", outFields: ["STREET_NAME"], returnGeometry: true });
+        const streetQuery = new Query({ geometry: event.mapPoint, distance: 30, units: "meters", spatialRelationship: "intersects", outFields: ["STREET_NAME"], returnGeometry: true, where: "RH_TO_DATE IS NULL" });
         
         Promise.all([query.executeQueryJSON(lrsLayerUrl, mQuery), streetLayer.queryFeatures(streetQuery)]).then(([mResults, streetResults]) => {
           if (mResults.features.length === 0) { document.getElementById("resultsList").innerHTML = "<p>No routes found.</p>"; return; }

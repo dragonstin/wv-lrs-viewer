@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
-  <title>WV DOT LRS Viewer v63 (Geometry Measure Fix)</title>
+  <title>WV DOT LRS Viewer v66 (Layer 89 Schema Fix)</title>
 
   <style>
     html, body, #viewDiv { padding: 0; margin: 0; height: 100%; width: 100%; font-family: "Avenir Next", "Helvetica Neue", Helvetica, Arial, sans-serif; }
@@ -137,7 +137,8 @@
       const lrsLayerUrl = "https://services2.arcgis.com/xLpB90lOmCXYDAWo/arcgis/rest/services/Dominant_Routes/FeatureServer/20";
       const bridgeLayerUrl = "https://gis.transportation.wv.gov/arcgis/rest/services/Roads_And_Highways/Publication_LRS/FeatureServer/113";
       const streetLayerUrl = "https://gis.transportation.wv.gov/arcgis/rest/services/Roads_And_Highways/Publication_LRS/FeatureServer/118";
-      
+      const networkLayerUrl = "https://gis.transportation.wv.gov/arcgis/rest/services/Roads_And_Highways/Publication_LRS/MapServer/89";
+
       const rillrsRouteUrl = "https://gis.transportation.wv.gov/api/rillrs/route/"; 
       const rillrsDetailsUrl = "https://gis.transportation.wv.gov/api/rillrs/details/";
 
@@ -165,7 +166,6 @@
         defaultSymbol: { type: "simple-line", color: [150, 150, 150, 0.5], width: 1 }
       };
 
-      // --- BRIDGE LABEL CONFIGURATION ---
       const bridgeLabelClass = {
         symbol: {
           type: "text",
@@ -201,20 +201,19 @@
       const llExpand = new Expand({ view: view, content: new LayerList({ view: view }), tooltip: "Layers", group: "top-right" });
       view.ui.add([bridgeExpand, builderExpand, searchExpand, legendExpand, bgExpand, llExpand], "top-right");
 
-      // --- HELPERS (Measures & Geometry - FIX APPLIED HERE) ---
+      // --- HELPERS (Measures & Geometry) ---
       function getMeasureOnLine(g, p) { let bestD=Infinity, bestM=null, bestP=null; g.paths.forEach(pth => { for(let i=0; i<pth.length-1; i++) { const A=pth[i], B=pth[i+1], mA=A[A.length-1], mB=B[B.length-1]; if(mA===undefined) continue; const seg = { type:"polyline", paths:[[[A[0],A[1]],[B[0],B[1]]]], spatialReference:g.spatialReference }; const n = geometryEngine.nearestCoordinate(seg, p); if(n.distance < bestD) { bestD = n.distance; bestP = n.coordinate; const full = geometryEngine.distance(new Point({x:A[0],y:A[1],spatialReference:g.spatialReference}), new Point({x:B[0],y:B[1],spatialReference:g.spatialReference})); const part = geometryEngine.distance(new Point({x:A[0],y:A[1],spatialReference:g.spatialReference}), n.coordinate); const r = (full===0)?0:part/full; bestM = mA + (mB-mA)*r; } }}); return {m:bestM, distance:bestD, snapPoint:bestP}; }
       
       function getMeasureBounds(g) { let min=Infinity, max=-Infinity, start=null, end=null; g.paths.forEach(p=>p.forEach(pt=>{ const m=pt[pt.length-1]; if(m!==undefined){ if(m<min){min=m; start=new Point({x:pt[0],y:pt[1],spatialReference:g.spatialReference});} if(m>max){max=m; end=new Point({x:pt[0],y:pt[1],spatialReference:g.spatialReference});} } })); return {minM:min, maxM:max, startPoint:start, endPoint:end}; }
       
       function getPointAtMeasure(g, t) { 
-        const eps = 0.0011; // Epsilon tolerance to catch floating point discrepancies (e.g. 1.540 vs 1.540001)
+        const eps = 0.0011; 
         for(const p of g.paths){ 
           for(let i=0; i<p.length-1; i++){ 
             const A=p[i], B=p[i+1], mA=A[A.length-1], mB=B[B.length-1]; 
             if(mA===undefined) continue; 
             const min=Math.min(mA,mB), max=Math.max(mA,mB); 
             if(t >= min - eps && t <= max + eps){ 
-              // Clamp 't' exactly to segment bounds to prevent calculating past end of line
               const ct = Math.max(min, Math.min(t, max)); 
               const r=(mB-mA===0)?0:(ct-mA)/(mB-mA); 
               return new Point({x:A[0]+(B[0]-A[0])*r, y:A[1]+(B[1]-A[1])*r, spatialReference:g.spatialReference}); 
@@ -226,7 +225,7 @@
       
       function sliceRouteByMeasure(g, s, e) { 
         const minT=Math.min(s,e), maxT=Math.max(s,e), paths=[]; 
-        const eps = 0.0011; // Epsilon tolerance
+        const eps = 0.0011; 
         g.paths.forEach(p=>{ 
           let pts=[]; 
           for(let i=0; i<p.length-1; i++){ 
@@ -428,15 +427,25 @@
         });
       });
 
-      // --- SEARCH LOGIC (FIX APPLIED HERE) ---
+      // --- FIND MEASURE LOGIC (LAYER 89 SCHEMA FIX) ---
       function executeRouteSearch(rID, bmp, emp) {
          view.graphics.removeAll();
          document.getElementById("infoPanel").style.display = "block";
          document.getElementById("resultsList").innerHTML = "<p>Locating...</p>";
          view.closePopup(); 
-         const q = new Query({ where: `ROUTEID = '${rID}'`, returnGeometry: true, returnM: true, outFields: ["*"], outSpatialReference: view.spatialReference });
-         query.executeQueryJSON(lrsLayerUrl, q).then(results => {
-            if (results.features.length === 0) { alert("Route not found."); document.getElementById("resultsList").innerHTML = ""; return; }
+         
+         // HARDCODED CORRECT SCHEMA FIELD FOR LAYER 89: CO_ROUTEID
+         const q = new Query({ 
+             where: `CO_ROUTEID = '${rID}'`, 
+             returnGeometry: true, 
+             returnM: true, 
+             outFields: ["*"], 
+             outSpatialReference: view.spatialReference 
+         });
+         
+         query.executeQueryJSON(networkLayerUrl, q).then(results => {
+            if (results.features.length === 0) { alert("Route not found in Network Layer."); document.getElementById("resultsList").innerHTML = ""; return; }
+            
             const allGeoms = results.features.map(f => f.geometry);
             const mergedGeo = geometryEngine.union(allGeoms); 
             const bounds = getMeasureBounds(mergedGeo); 
@@ -476,7 +485,7 @@
                     if(p2) view.graphics.add(createLabel(p2, emp.toFixed(3))); 
                 } 
             }
-         }).catch(err => { console.error(err); alert("Search failed."); });
+         }).catch(err => { console.error(err); alert("Search failed."); document.getElementById("resultsList").innerHTML = ""; });
       }
 
       function renderBridgeResults(bridgeResults, rawInput, searchArea = null) {
@@ -519,6 +528,7 @@
           document.getElementById("infoPanel").style.display = "block";
       }
 
+      // --- BRIDGE SEARCH (LAYER 89 SCHEMA FIX) ---
       document.getElementById("btnFindBridge").addEventListener("click", () => {
         let rawInput = document.getElementById("inputBridgeID").value.trim();
         if (!rawInput) { alert("Please enter a Bridge Number or BARSID."); return; }
@@ -554,8 +564,15 @@
         const paddedRoute = routeNum.padStart(4, "0");
         const lrsQueryStr = `${countyCode}_${paddedRoute}${subRouteNum}%`;
         
-        const q = new Query({ where: `ROUTEID LIKE '${lrsQueryStr}'`, returnGeometry: true, returnM: true, outFields: ["ROUTEID"] });
-        query.executeQueryJSON(lrsLayerUrl, q).then(lrsResults => {
+        // HARDCODED CORRECT SCHEMA FIELD FOR LAYER 89: CO_ROUTEID
+        const q = new Query({ 
+            where: `CO_ROUTEID LIKE '${lrsQueryStr}'`, 
+            returnGeometry: true, 
+            returnM: true, 
+            outFields: ["*"] 
+        });
+        
+        query.executeQueryJSON(networkLayerUrl, q).then(lrsResults => {
            if (lrsResults.features.length === 0) { alert("No route found matching that bridge number."); document.getElementById("btnFindBridge").innerText = "Find Bridge"; return; }
            let searchGeometries = [];
            lrsResults.features.forEach(feat => { const pt = getPointAtMeasure(feat.geometry, milepoint); if (pt) { const buffer = geometryEngine.buffer(pt, 100, "feet"); searchGeometries.push(buffer); } });

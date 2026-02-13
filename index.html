@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
-  <title>WV DOT LRS Viewer v58 (G2M Parity)</title>
+  <title>WV DOT LRS Viewer v63 (Geometry Measure Fix)</title>
 
   <style>
     html, body, #viewDiv { padding: 0; margin: 0; height: 100%; width: 100%; font-family: "Avenir Next", "Helvetica Neue", Helvetica, Arial, sans-serif; }
@@ -80,7 +80,6 @@
     }
     .modal-head { font-size: 18px; font-weight: bold; border-bottom: 2px solid #0079c1; padding-bottom: 10px; margin-bottom: 15px; color: #333; }
     
-    /* Exact G2M List Styling */
     .modal-list { list-style: none; padding: 0; margin: 0; font-size: 13px; line-height: 1.6; }
     .modal-list li { padding: 6px 0; border-bottom: 1px solid #eee; display: flex; }
     .modal-list li b { display: inline-block; width: 50%; color: #444; }
@@ -139,7 +138,6 @@
       const bridgeLayerUrl = "https://gis.transportation.wv.gov/arcgis/rest/services/Roads_And_Highways/Publication_LRS/FeatureServer/113";
       const streetLayerUrl = "https://gis.transportation.wv.gov/arcgis/rest/services/Roads_And_Highways/Publication_LRS/FeatureServer/118";
       
-      // THE CORRECT G2M API ENDPOINTS
       const rillrsRouteUrl = "https://gis.transportation.wv.gov/api/rillrs/route/"; 
       const rillrsDetailsUrl = "https://gis.transportation.wv.gov/api/rillrs/details/";
 
@@ -167,13 +165,28 @@
         defaultSymbol: { type: "simple-line", color: [150, 150, 150, 0.5], width: 1 }
       };
 
+      // --- BRIDGE LABEL CONFIGURATION ---
+      const bridgeLabelClass = {
+        symbol: {
+          type: "text",
+          color: "darkred",
+          haloColor: "white",
+          haloSize: "1.5px",
+          font: { size: 10, weight: "bold", family: "sans-serif" },
+          yoffset: 12
+        },
+        labelPlacement: "above-center",
+        labelExpressionInfo: { expression: "$feature.BARSid" },
+        minScale: 10000 
+      };
+
       // --- LAYERS ---
       const layerBottom = new FeatureLayer({ url: lrsLayerUrl, renderer: routeRenderer, minScale: 100000, title: "Local Routes", legendEnabled: false, definitionExpression: "ROUTEID LIKE '__4%' OR ROUTEID LIKE '__0%' OR ROUTEID LIKE '__6%' OR ROUTEID LIKE '__7%' OR ROUTEID LIKE '__8%'" });
       const layerMiddle = new FeatureLayer({ url: lrsLayerUrl, renderer: routeRenderer, minScale: 2000000, title: "State Routes", legendEnabled: false, definitionExpression: "ROUTEID LIKE '__2%' OR ROUTEID LIKE '__3%'" });
       const layerTop = new FeatureLayer({ url: lrsLayerUrl, renderer: routeRenderer, minScale: 0, title: "Interstates", legendEnabled: false, definitionExpression: "ROUTEID LIKE '__1%'" });
       const legendDummy = new FeatureLayer({ url: lrsLayerUrl, title: "West Virginia Routes", renderer: routeRenderer, definitionExpression: "1=0", listMode: "hide", legendEnabled: true });
       const streetLayer = new FeatureLayer({ url: streetLayerUrl, outFields: ["STREET_NAME"], visible: false, listMode: "hide", definitionExpression: "RH_TO_DATE IS NULL" });
-      const bridgeLayer = new FeatureLayer({ url: bridgeLayerUrl, title: "Bridges", outFields: ["*"], definitionExpression: "RH_TO_DATE IS NULL", minScale: 50000, renderer: { type: "simple", symbol: { type: "simple-marker", style: "square", color: "orange", outline: { color: "black", width: 1 }, size: 7 } } });
+      const bridgeLayer = new FeatureLayer({ url: bridgeLayerUrl, title: "Bridges", outFields: ["*"], definitionExpression: "RH_TO_DATE IS NULL", minScale: 50000, renderer: { type: "simple", symbol: { type: "simple-marker", style: "square", color: "orange", outline: { color: "black", width: 1 }, size: 7 } }, labelingInfo: [bridgeLabelClass] });
 
       map.addMany([layerBottom, layerMiddle, layerTop, legendDummy, streetLayer, bridgeLayer]);
 
@@ -188,17 +201,83 @@
       const llExpand = new Expand({ view: view, content: new LayerList({ view: view }), tooltip: "Layers", group: "top-right" });
       view.ui.add([bridgeExpand, builderExpand, searchExpand, legendExpand, bgExpand, llExpand], "top-right");
 
-      // --- HELPERS (Measures & Geometry) ---
+      // --- HELPERS (Measures & Geometry - FIX APPLIED HERE) ---
       function getMeasureOnLine(g, p) { let bestD=Infinity, bestM=null, bestP=null; g.paths.forEach(pth => { for(let i=0; i<pth.length-1; i++) { const A=pth[i], B=pth[i+1], mA=A[A.length-1], mB=B[B.length-1]; if(mA===undefined) continue; const seg = { type:"polyline", paths:[[[A[0],A[1]],[B[0],B[1]]]], spatialReference:g.spatialReference }; const n = geometryEngine.nearestCoordinate(seg, p); if(n.distance < bestD) { bestD = n.distance; bestP = n.coordinate; const full = geometryEngine.distance(new Point({x:A[0],y:A[1],spatialReference:g.spatialReference}), new Point({x:B[0],y:B[1],spatialReference:g.spatialReference})); const part = geometryEngine.distance(new Point({x:A[0],y:A[1],spatialReference:g.spatialReference}), n.coordinate); const r = (full===0)?0:part/full; bestM = mA + (mB-mA)*r; } }}); return {m:bestM, distance:bestD, snapPoint:bestP}; }
+      
       function getMeasureBounds(g) { let min=Infinity, max=-Infinity, start=null, end=null; g.paths.forEach(p=>p.forEach(pt=>{ const m=pt[pt.length-1]; if(m!==undefined){ if(m<min){min=m; start=new Point({x:pt[0],y:pt[1],spatialReference:g.spatialReference});} if(m>max){max=m; end=new Point({x:pt[0],y:pt[1],spatialReference:g.spatialReference});} } })); return {minM:min, maxM:max, startPoint:start, endPoint:end}; }
-      function getPointAtMeasure(g, t) { for(const p of g.paths){ for(let i=0; i<p.length-1; i++){ const A=p[i], B=p[i+1], mA=A[A.length-1], mB=B[B.length-1]; if(mA===undefined) continue; const min=Math.min(mA,mB), max=Math.max(mA,mB); if(t>=min && t<=max){ const r=(mB-mA===0)?0:(t-mA)/(mB-mA); return new Point({x:A[0]+(B[0]-A[0])*r, y:A[1]+(B[1]-A[1])*r, spatialReference:g.spatialReference}); } } } return null; }
-      function sliceRouteByMeasure(g, s, e) { const min=Math.min(s,e), max=Math.max(s,e), paths=[]; g.paths.forEach(p=>{ let pts=[]; for(let i=0; i<p.length-1; i++){ const A=p[i], B=p[i+1], mA=A[A.length-1], mB=B[B.length-1]; if(mA===undefined) continue; const segMin=Math.min(mA,mB), segMax=Math.max(mA,mB); if(Math.max(min,segMin)<=Math.min(max,segMax)){ const r=(mB-mA===0)?0:1/(mB-mA); let p1=A; if(min>segMin && min<segMax) p1=[A[0]+(B[0]-A[0])*(min-mA)*r, A[1]+(B[1]-A[1])*(min-mA)*r]; let p2=B; if(max>segMin && max<segMax) p2=[A[0]+(B[0]-A[0])*(max-mA)*r, A[1]+(B[1]-A[1])*(max-mA)*r]; if(pts.length===0) pts.push(p1); pts.push(p2); } } if(pts.length>0) paths.push(pts); }); return (paths.length>0)?new Polyline({paths:paths, spatialReference:g.spatialReference}):null; }
+      
+      function getPointAtMeasure(g, t) { 
+        const eps = 0.0011; // Epsilon tolerance to catch floating point discrepancies (e.g. 1.540 vs 1.540001)
+        for(const p of g.paths){ 
+          for(let i=0; i<p.length-1; i++){ 
+            const A=p[i], B=p[i+1], mA=A[A.length-1], mB=B[B.length-1]; 
+            if(mA===undefined) continue; 
+            const min=Math.min(mA,mB), max=Math.max(mA,mB); 
+            if(t >= min - eps && t <= max + eps){ 
+              // Clamp 't' exactly to segment bounds to prevent calculating past end of line
+              const ct = Math.max(min, Math.min(t, max)); 
+              const r=(mB-mA===0)?0:(ct-mA)/(mB-mA); 
+              return new Point({x:A[0]+(B[0]-A[0])*r, y:A[1]+(B[1]-A[1])*r, spatialReference:g.spatialReference}); 
+            } 
+          } 
+        } 
+        return null; 
+      }
+      
+      function sliceRouteByMeasure(g, s, e) { 
+        const minT=Math.min(s,e), maxT=Math.max(s,e), paths=[]; 
+        const eps = 0.0011; // Epsilon tolerance
+        g.paths.forEach(p=>{ 
+          let pts=[]; 
+          for(let i=0; i<p.length-1; i++){ 
+            const A=p[i], B=p[i+1], mA=A[A.length-1], mB=B[B.length-1]; 
+            if(mA===undefined) continue; 
+            const segMin=Math.min(mA,mB), segMax=Math.max(mA,mB); 
+            if(maxT >= segMin - eps && minT <= segMax + eps){ 
+              const r=(mB-mA===0)?0:1/(mB-mA); 
+              let p1=A; 
+              if(minT > segMin + eps) { 
+                const ct = Math.max(segMin, Math.min(minT, segMax));
+                p1=[A[0]+(B[0]-A[0])*(ct-mA)*r, A[1]+(B[1]-A[1])*(ct-mA)*r]; 
+              } 
+              let p2=B; 
+              if(maxT < segMax - eps) { 
+                const ct = Math.max(segMin, Math.min(maxT, segMax));
+                p2=[A[0]+(B[0]-A[0])*(ct-mA)*r, A[1]+(B[1]-A[1])*(ct-mA)*r]; 
+              } 
+              if(pts.length===0) pts.push(p1); 
+              pts.push(p2); 
+            } 
+          } 
+          if(pts.length>0) paths.push(pts); 
+        }); 
+        return (paths.length>0)?new Polyline({paths:paths, spatialReference:g.spatialReference}):null; 
+      }
+      
       function createLabel(pt, txt) { return new Graphic({ geometry:pt, symbol: { type:"text", color:"black", haloColor:"white", haloSize:1, text:txt, yoffset:10, font:{size:10, weight:"bold"} } }); }
       function parseRouteInfo(id) { if (!id || id.length < 7) return { number: "?", system: "Unknown" }; let numStr = parseInt(id.substring(3,7)).toString(); const sub = parseInt(id.substring(7,9)); if (sub > 0) numStr += "/" + sub; const sysCode = id.substring(2,3); const supp = id.substring(9,11); let sysName = systemMap[sysCode] || "System " + sysCode; if (supp === '24') sysName = "Proposed " + sysName; return { number: numStr, system: sysName }; }
 
       window.highlightRoute = (idx) => { view.graphics.removeAll(); if(window.currentData && window.currentData[idx]) { const d = window.currentData[idx]; view.graphics.add(new Graphic({ geometry: d.graphic.geometry, symbol: { type:"simple-line", color:[0,255,255,0.8], width:4 } })); if(window.clickLoc && d.snap) { view.graphics.add(new Graphic({ geometry: new Polyline({paths:[[[window.clickLoc.x, window.clickLoc.y], [d.snap.x, d.snap.y]]], spatialReference:view.spatialReference}), symbol:{type:"simple-line", color:[50,50,50], style:"dash"} })); view.graphics.add(new Graphic({ geometry: d.snap, symbol: { type:"simple-marker", color:[0,255,255], outline:{color:"black"}, size:6 } })); } } };
       window.clearHighlight = () => { view.graphics.removeAll(); };
       window.zoomToBridge = (oid) => { if (window.currentBridgeResults) { const b = window.currentBridgeResults.find(f => f.attributes.OBJECTID === oid); if (b) view.goTo({ target: b.geometry, zoom: 18 }); } };
+
+      // --- BRIDGE HIGHLIGHT HELPERS ---
+      window.highlightBridge = (idx) => {
+         window.clearHighlightBridge();
+         if(window.currentBridgeResults && window.currentBridgeResults[idx]) {
+            const b = window.currentBridgeResults[idx];
+            const h = new Graphic({ 
+                geometry: b.geometry, 
+                symbol: { type: "simple-marker", style: "diamond", color: [0, 255, 255, 0.8], size: 18, outline: { width: 2, color: "black" } } 
+            });
+            h.isBridgeHighlight = true;
+            view.graphics.add(h);
+         }
+      };
+      window.clearHighlightBridge = () => { 
+         const highlights = view.graphics.filter(g => g.isBridgeHighlight);
+         view.graphics.removeMany(highlights);
+      };
 
       // --- API FETCH FUNCTION (EXACT G2M INTEGRATION) ---
       window.fetchRilDetails = async (routeId, measure) => {
@@ -208,14 +287,12 @@
         content.innerHTML = "<p>Loading data from RIL database...</p>";
 
         try {
-          // 1. MNS Check (Skipping API for System 0)
           const system = routeId.substring(2, 3);
           if (system === "0") {
              content.innerHTML = `<div class="modal-head">MNS Route</div><p>No data is maintained in the RIL database for MNS routes.</p>`;
              return;
           }
 
-          // 2. Initial RILLRS Route Query
           const timestamp = new Date().getTime();
           const initUrl = `${rillrsRouteUrl}${routeId}?_=${timestamp}`;
 
@@ -228,7 +305,6 @@
              return;
           }
 
-          // 3. Filter matched segment
           const targetMeasure = Math.abs(measure); 
           const matchedSegment = routeData.find(ril => {
               const start = parseFloat(ril.StartingMilepoint);
@@ -243,7 +319,6 @@
               return;
           }
 
-          // 4. Fetch Deep Details using DetailID
           const detailId = matchedSegment.DetailID;
           if (!detailId) {
              content.innerHTML = `<div class="modal-head">Details Unavailable</div><p>No DetailID found for this segment.</p>`;
@@ -262,10 +337,8 @@
              return;
           }
 
-          // Safe value helper to avoid printing 'null' or 'undefined'
           const v = (val) => (val == null) ? "N/A" : val;
 
-          // 5. Build Modal Exactly like G2M
           let html = `<div class="modal-head">Details for ${v(d.County)} county | Route ${v(d.Route)} | Subroute ${v(d.SubRoute)}</div>`;
           html += `<ul class="modal-list">`;
           html += `<li><b>Route ID:</b> <span>${v(d.RouteID)}</span></li>`;
@@ -324,6 +397,7 @@
           const best = {}; processed.forEach(i => { if(!best[i.id] || i.dist < best[i.id].dist) best[i.id] = i; });
           const uniq = Object.values(best).sort((a,b) => a.dist - b.dist);
           let html = "";
+          
           uniq.forEach((item, idx) => {
             const info = parseRouteInfo(item.id);
             let sName = "Unknown"; 
@@ -354,7 +428,7 @@
         });
       });
 
-      // --- UNCHANGED SEARCH/BUILDER/BRIDGE LOGIC ---
+      // --- SEARCH LOGIC (FIX APPLIED HERE) ---
       function executeRouteSearch(rID, bmp, emp) {
          view.graphics.removeAll();
          document.getElementById("infoPanel").style.display = "block";
@@ -368,29 +442,118 @@
             const bounds = getMeasureBounds(mergedGeo); 
             const hasBMP = (bmp !== undefined && !isNaN(bmp)); const hasEMP = (emp !== undefined && !isNaN(emp));
             const info = parseRouteInfo(rID);
-            if (hasBMP && (bmp < bounds.minM || bmp > bounds.maxM)) { alert(`BMP out of range (${bounds.minM.toFixed(3)}-${bounds.maxM.toFixed(3)})`); return; }
-            if (hasEMP && (emp < bounds.minM || emp > bounds.maxM)) { alert(`EMP out of range (${bounds.minM.toFixed(3)}-${bounds.maxM.toFixed(3)})`); return; }
-            document.getElementById("resultsList").innerHTML = `<div class="route-card" style="border-left-color:#0079c1; cursor:default;"><div class="route-title">${info.system} ${info.number}</div><div class="route-detail">ID: ${rID}</div><div class="route-detail">Range: ${bounds.minM.toFixed(3)} - ${bounds.maxM.toFixed(3)}</div></div>`;
-            if (!hasBMP && !hasEMP) { view.goTo(mergedGeo); view.graphics.add(new Graphic({ geometry: mergedGeo, symbol: { type: "simple-line", color: [0, 255, 255, 0.8], width: 6 } })); if(bounds.startPoint) view.graphics.add(createLabel(bounds.startPoint, bounds.minM.toFixed(3))); if(bounds.endPoint) view.graphics.add(createLabel(bounds.endPoint, bounds.maxM.toFixed(3))); }
-            else if (hasBMP && !hasEMP) { const p = getPointAtMeasure(mergedGeo, bmp); if(p) { view.goTo({ target: p, zoom: 16 }); view.graphics.add(new Graphic({ geometry: p, symbol: { type: "simple-marker", color: "red", size: 10, outline: {color:"black"} } })); view.graphics.add(createLabel(p, bmp.toFixed(3))); } }
-            else if (hasBMP && hasEMP) { const seg = sliceRouteByMeasure(mergedGeo, bmp, emp); if(seg) { view.goTo(seg); view.graphics.add(new Graphic({ geometry: seg, symbol: { type: "simple-line", color: [255, 0, 0, 1], width: 4 } })); const p1 = getPointAtMeasure(mergedGeo, bmp); const p2 = getPointAtMeasure(mergedGeo, emp); if(p1) view.graphics.add(createLabel(p1, bmp.toFixed(3))); if(p2) view.graphics.add(createLabel(p2, emp.toFixed(3))); } }
+            
+            const safeMin = parseFloat(bounds.minM.toFixed(3));
+            const safeMax = parseFloat(bounds.maxM.toFixed(3));
+
+            if (hasBMP && (bmp < safeMin || bmp > safeMax)) { alert(`BMP out of range (${safeMin.toFixed(3)}-${safeMax.toFixed(3)})`); return; }
+            if (hasEMP && (emp < safeMin || emp > safeMax)) { alert(`EMP out of range (${safeMin.toFixed(3)}-${safeMax.toFixed(3)})`); return; }
+            
+            document.getElementById("resultsList").innerHTML = `<div class="route-card" style="border-left-color:#0079c1; cursor:default;"><div class="route-title">${info.system} ${info.number}</div><div class="route-detail">ID: ${rID}</div><div class="route-detail">Range: ${safeMin.toFixed(3)} - ${safeMax.toFixed(3)}</div></div>`;
+            
+            if (!hasBMP && !hasEMP) { 
+                view.goTo(mergedGeo); 
+                view.graphics.add(new Graphic({ geometry: mergedGeo, symbol: { type: "simple-line", color: [0, 255, 255, 0.8], width: 6 } })); 
+                if(bounds.startPoint) view.graphics.add(createLabel(bounds.startPoint, safeMin.toFixed(3))); 
+                if(bounds.endPoint) view.graphics.add(createLabel(bounds.endPoint, safeMax.toFixed(3))); 
+            }
+            else if (hasBMP && !hasEMP) { 
+                const p = getPointAtMeasure(mergedGeo, bmp); 
+                if(p) { 
+                    view.goTo({ target: p, zoom: 16 }); 
+                    view.graphics.add(new Graphic({ geometry: p, symbol: { type: "simple-marker", color: "red", size: 10, outline: {color:"black"} } })); 
+                    view.graphics.add(createLabel(p, bmp.toFixed(3))); 
+                } 
+            }
+            else if (hasBMP && hasEMP) { 
+                const seg = sliceRouteByMeasure(mergedGeo, bmp, emp); 
+                if(seg) { 
+                    view.goTo(seg); 
+                    view.graphics.add(new Graphic({ geometry: seg, symbol: { type: "simple-line", color: [255, 0, 0, 1], width: 4 } })); 
+                    const p1 = getPointAtMeasure(mergedGeo, bmp); 
+                    const p2 = getPointAtMeasure(mergedGeo, emp); 
+                    if(p1) view.graphics.add(createLabel(p1, bmp.toFixed(3))); 
+                    if(p2) view.graphics.add(createLabel(p2, emp.toFixed(3))); 
+                } 
+            }
          }).catch(err => { console.error(err); alert("Search failed."); });
       }
 
+      function renderBridgeResults(bridgeResults, rawInput, searchArea = null) {
+          document.getElementById("btnFindBridge").innerText = "Find Bridge";
+          if (bridgeResults.features.length === 0) { alert("No active bridges found matching criteria."); return; }
+          
+          view.graphics.removeAll();
+          let html = "";
+          window.currentBridgeResults = bridgeResults.features;
+          
+          bridgeResults.features.forEach((b, idx) => {
+             const attr = b.attributes;
+             const barsId = attr.BARSid || attr.OBJECTID; 
+             
+             html += `<div class="bridge-card" 
+                           onclick="window.zoomToBridge(${attr.OBJECTID})"
+                           onmouseover="window.highlightBridge(${idx})" 
+                           onmouseout="window.clearHighlightBridge()">
+                 <div class="route-title">Bridge Found</div>
+                 <div class="route-detail"><b>BARS ID:</b> ${barsId}</div>
+                 <div class="route-detail"><b>Ref:</b> ${rawInput}</div>
+             </div>`;
+             
+             view.graphics.add(new Graphic({ 
+                 geometry: b.geometry, 
+                 symbol: { type: "simple-marker", style: "diamond", color: "red", size: 12, outline: { width: 2, color: "yellow" } } 
+             }));
+          });
+          
+          if (searchArea) {
+              view.graphics.add(new Graphic({ geometry: searchArea, symbol: { type: "simple-fill", color: [255, 0, 0, 0.1], outline: { color: "red", style: "dash" } } }));
+              view.goTo(searchArea.extent.expand(2));
+          } else if (bridgeResults.features.length === 1) {
+              view.goTo({ target: bridgeResults.features[0].geometry, zoom: 16 });
+          } else {
+              view.goTo(bridgeResults.features.map(f => f.geometry));
+          }
+          
+          document.getElementById("resultsList").innerHTML = html;
+          document.getElementById("infoPanel").style.display = "block";
+      }
+
       document.getElementById("btnFindBridge").addEventListener("click", () => {
-        const rawInput = document.getElementById("inputBridgeID").value.trim();
-        if (!rawInput) { alert("Please enter a Bridge Number."); return; }
+        let rawInput = document.getElementById("inputBridgeID").value.trim();
+        if (!rawInput) { alert("Please enter a Bridge Number or BARSID."); return; }
         document.getElementById("btnFindBridge").innerText = "Searching...";
         view.graphics.removeAll();
         view.closePopup();
+
+        if (!rawInput.includes("-")) {
+            const bQuery = new Query({ 
+                where: `UPPER(BARSid) LIKE UPPER('%${rawInput}%') AND RH_TO_DATE IS NULL`, 
+                returnGeometry: true, 
+                outFields: ["*"] 
+            });
+            bridgeLayer.queryFeatures(bQuery).then(bridgeResults => {
+                if(bridgeResults.features.length === 0) {
+                     alert("No active bridges found matching BARSID: " + rawInput); 
+                     document.getElementById("btnFindBridge").innerText = "Find Bridge";
+                     return;
+                }
+                renderBridgeResults(bridgeResults, rawInput);
+            }).catch(err => {
+                console.error(err); alert("Search Error."); document.getElementById("btnFindBridge").innerText = "Find Bridge";
+            });
+            return;
+        }
+
         const parts = rawInput.split("-");
-        if (parts.length < 3) { alert("Invalid Format. Use: CC-Route-MP or CC-Route/Sub-MP"); document.getElementById("btnFindBridge").innerText = "Find Bridge"; return; }
+        if (parts.length < 3) { alert("Invalid Format. Use: CC-Route-MP, CC-Route/Sub-MP, or BARSID"); document.getElementById("btnFindBridge").innerText = "Find Bridge"; return; }
         const countyCode = parts[0]; let routeStr = parts[1]; const milepoint = parseFloat(parts[2]);
         if (isNaN(milepoint)) { alert("Invalid Milepoint."); document.getElementById("btnFindBridge").innerText = "Find Bridge"; return; }
         let routeNum = ""; let subRouteNum = "00";
         if (routeStr.includes("/")) { const rParts = routeStr.split("/"); routeNum = rParts[0]; subRouteNum = rParts[1].padStart(2, "0"); } else { routeNum = routeStr; }
         const paddedRoute = routeNum.padStart(4, "0");
         const lrsQueryStr = `${countyCode}_${paddedRoute}${subRouteNum}%`;
+        
         const q = new Query({ where: `ROUTEID LIKE '${lrsQueryStr}'`, returnGeometry: true, returnM: true, outFields: ["ROUTEID"] });
         query.executeQueryJSON(lrsLayerUrl, q).then(lrsResults => {
            if (lrsResults.features.length === 0) { alert("No route found matching that bridge number."); document.getElementById("btnFindBridge").innerText = "Find Bridge"; return; }
@@ -399,17 +562,10 @@
            if (searchGeometries.length === 0) { alert(`Milepoint ${milepoint} not found on the route geometry.`); document.getElementById("btnFindBridge").innerText = "Find Bridge"; return; }
            const searchArea = geometryEngine.union(searchGeometries);
            const bQuery = new Query({ geometry: searchArea, spatialRelationship: "intersects", outFields: ["*"], returnGeometry: true, where: "RH_TO_DATE IS NULL" });
+           
            bridgeLayer.queryFeatures(bQuery).then(bridgeResults => {
-              document.getElementById("btnFindBridge").innerText = "Find Bridge";
-              if (bridgeResults.features.length === 0) { alert("Route found, but no active bridges within 100ft."); return; }
-              let html = "";
-              bridgeResults.features.forEach(b => { const attr = b.attributes; const barsId = attr.BARSID || attr.OBJECTID; html += `<div class="bridge-card" onclick="zoomToBridge(${b.attributes.OBJECTID})"><div class="route-title">Bridge Found</div><div class="route-detail"><b>BARS ID:</b> ${barsId}</div><div class="route-detail"><b>Ref:</b> ${rawInput}</div></div>`; view.graphics.add(new Graphic({ geometry: b.geometry, symbol: { type: "simple-marker", style: "diamond", color: "red", size: 12, outline: { width: 2, color: "yellow" } } })); });
-              view.graphics.add(new Graphic({ geometry: searchArea, symbol: { type: "simple-fill", color: [255, 0, 0, 0.1], outline: { color: "red", style: "dash" } } }));
-              document.getElementById("resultsList").innerHTML = html;
-              document.getElementById("infoPanel").style.display = "block";
-              view.goTo(searchArea.extent.expand(2));
-              window.currentBridgeResults = bridgeResults.features;
-           });
+              renderBridgeResults(bridgeResults, rawInput, searchArea);
+           }).catch(err => { console.error(err); alert("Search Error."); document.getElementById("btnFindBridge").innerText = "Find Bridge"; });
         }).catch(err => { console.error(err); alert("Search Error."); document.getElementById("btnFindBridge").innerText = "Find Bridge"; });
       });
 
@@ -466,8 +622,8 @@
 
   <div id="bridgePanel" class="panel-base">
     <div class="panel-header">Bridge Lookup</div>
-    <div style="font-size:12px; color:#555; margin-bottom:5px;">Format: 20-77-103.65 (CC-Rt-MP)</div>
-    <input type="text" id="inputBridgeID" class="search-input" placeholder="Bridge Number (Old ID)" />
+    <div style="font-size:12px; color:#555; margin-bottom:5px;">Format: 20-77-103.65 or BARSID (e.g. 20A123)</div>
+    <input type="text" id="inputBridgeID" class="search-input" placeholder="Bridge Number or BARSID" />
     <button id="btnFindBridge" class="action-btn">Find Bridge</button>
   </div>
 

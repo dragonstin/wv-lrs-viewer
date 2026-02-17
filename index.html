@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
-  <title>WV DOT LRS Viewer v66 (Layer 89 Schema Fix)</title>
+  <title>WV DOT LRS Viewer v67 (Bridge Zoom Fallback)</title>
 
   <style>
     html, body, #viewDiv { padding: 0; margin: 0; height: 100%; width: 100%; font-family: "Avenir Next", "Helvetica Neue", Helvetica, Arial, sans-serif; }
@@ -166,6 +166,7 @@
         defaultSymbol: { type: "simple-line", color: [150, 150, 150, 0.5], width: 1 }
       };
 
+      // --- BRIDGE LABEL CONFIGURATION ---
       const bridgeLabelClass = {
         symbol: {
           type: "text",
@@ -490,7 +491,26 @@
 
       function renderBridgeResults(bridgeResults, rawInput, searchArea = null) {
           document.getElementById("btnFindBridge").innerText = "Find Bridge";
-          if (bridgeResults.features.length === 0) { alert("No active bridges found matching criteria."); return; }
+          
+          if (bridgeResults.features.length === 0) {
+              if (searchArea) {
+                  // Fallback for Spatial Search: Zoom to area anyway
+                  view.graphics.removeAll();
+                  view.graphics.add(new Graphic({ geometry: searchArea, symbol: { type: "simple-fill", color: [255, 0, 0, 0.1], outline: { color: "red", style: "dash" } } }));
+                  view.goTo(searchArea.extent.expand(5)); // Zoom out a bit more context
+                  
+                  document.getElementById("resultsList").innerHTML = `
+                      <div class="bridge-card" style="border-left-color: #d9534f;">
+                          <div class="route-title" style="color: #d9534f;">No Bridge Found</div>
+                          <div class="route-detail">Location: ${rawInput}</div>
+                          <div class="route-detail"><i>Zoomed to calculated measure location.</i></div>
+                      </div>`;
+                  document.getElementById("infoPanel").style.display = "block";
+              } else {
+                  alert("No active bridges found matching criteria.");
+              }
+              return;
+          }
           
           view.graphics.removeAll();
           let html = "";

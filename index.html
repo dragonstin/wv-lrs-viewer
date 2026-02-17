@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
-  <title>WV DOT LRS Viewer v67 (Bridge Zoom Fallback)</title>
+  <title>WV DOT LRS Viewer v71 (Stable)</title>
 
   <style>
     html, body, #viewDiv { padding: 0; margin: 0; height: 100%; width: 100%; font-family: "Avenir Next", "Helvetica Neue", Helvetica, Arial, sans-serif; }
@@ -95,6 +95,58 @@
 
   <link rel="stylesheet" href="https://js.arcgis.com/4.28/esri/themes/light/main.css" />
   <script src="https://js.arcgis.com/4.28/"></script>
+</head>
+<body>
+  <div id="viewDiv"></div>
+  
+  <div id="infoPanel" class="panel-base">
+    <div class="panel-header">
+      <span>Route Information</span>
+      <span id="btnCloseInfo" class="close-icon">&times;</span>
+    </div>
+    <div id="resultsList">
+      <p style="color: #666; font-style: italic;">Click a route on the map or use the Search tool to see details.</p>
+    </div>
+    <button id="btnClear" class="clear-btn">Clear Selection</button>
+  </div>
+
+  <div id="searchPanel" class="panel-base">
+    <div class="panel-header">Find Measure</div>
+    <input type="text" id="inputRouteID" class="search-input" placeholder="Route ID..." />
+    <div class="search-row">
+      <input type="number" id="inputBMP" class="search-input" placeholder="BMP" step="0.01" />
+      <input type="number" id="inputEMP" class="search-input" placeholder="EMP" step="0.01" />
+    </div>
+    <button id="btnSearch" class="action-btn">Go</button>
+  </div>
+
+  <div id="bridgePanel" class="panel-base">
+    <div class="panel-header">Bridge Lookup</div>
+    <div style="font-size:12px; color:#555; margin-bottom:5px;">Format: 20-77-103.65 or BARSID (e.g. 20A123)</div>
+    <input type="text" id="inputBridgeID" class="search-input" placeholder="Bridge Number or BARSID" />
+    <button id="btnFindBridge" class="action-btn">Find Bridge</button>
+  </div>
+
+  <div id="builderPanel" class="panel-base">
+    <div class="panel-header">Route Builder</div>
+    <select id="selCounty" class="builder-select"><option value="">Select County</option></select>
+    <select id="selSystem" class="builder-select" disabled></select>
+    <select id="selRoute" class="builder-select" disabled></select>
+    <select id="selSub" class="builder-select" disabled></select>
+    <select id="selSupp" class="builder-select" disabled></select>
+    <select id="selDir" class="builder-select" disabled></select>
+    <button id="btnBuild" class="action-btn" disabled>Build & Locate</button>
+  </div>
+
+  <div id="detailsModal">
+    <div class="modal-content">
+      <div class="panel-header">
+        <span>RIL Details</span>
+        <span class="close-icon close-icon-modal">&times;</span>
+      </div>
+      <div id="modalDataContent">Loading...</div>
+    </div>
+  </div>
 
   <script>
     require([
@@ -102,8 +154,9 @@
       "esri/Basemap", "esri/layers/TileLayer", "esri/layers/VectorTileLayer",
       "esri/rest/support/Query", "esri/rest/query", "esri/geometry/Point", "esri/geometry/Polyline",
       "esri/geometry/geometryEngine", "esri/Graphic", "esri/widgets/BasemapGallery",
-      "esri/widgets/LayerList", "esri/widgets/Expand", "esri/widgets/Home", "esri/widgets/Legend"
-    ], (Map, MapView, FeatureLayer, GroupLayer, Basemap, TileLayer, VectorTileLayer, Query, query, Point, Polyline, geometryEngine, Graphic, BasemapGallery, LayerList, Expand, Home, Legend) => {
+      "esri/widgets/LayerList", "esri/widgets/Expand", "esri/widgets/Home", "esri/widgets/Legend", 
+      "esri/widgets/Search"
+    ], (Map, MapView, FeatureLayer, GroupLayer, Basemap, TileLayer, VectorTileLayer, Query, query, Point, Polyline, geometryEngine, Graphic, BasemapGallery, LayerList, Expand, Home, Legend, Search) => {
 
       // 1. ENHANCED CONTRAST (Light)
       const enhancedBasemap = new Basemap({
@@ -166,7 +219,6 @@
         defaultSymbol: { type: "simple-line", color: [150, 150, 150, 0.5], width: 1 }
       };
 
-      // --- BRIDGE LABEL CONFIGURATION ---
       const bridgeLabelClass = {
         symbol: {
           type: "text",
@@ -193,14 +245,18 @@
 
       // --- UI SETUP ---
       view.ui.add(new Home({ view: view }), "top-left");
+      
       const bridgeExpand = new Expand({ view: view, content: document.getElementById("bridgePanel"), expandIcon: "magnifying-glass", tooltip: "Find Bridge", group: "top-right" });
       const builderExpand = new Expand({ view: view, content: document.getElementById("builderPanel"), expandIcon: "hammer", tooltip: "Route Builder", group: "top-right" });
-      const searchExpand = new Expand({ view: view, content: document.getElementById("searchPanel"), expandIcon: "search", tooltip: "Search Measure", group: "top-right" });
+      const searchExpand = new Expand({ view: view, content: document.getElementById("searchPanel"), expandIcon: "search", tooltip: "Find Measure", group: "top-right" });
+      const addressSearch = new Search({ view: view });
+      const addressExpand = new Expand({ view: view, content: addressSearch, expandIcon: "road-sign", tooltip: "Address Search", group: "top-right" });
       const legendExpand = new Expand({ view: view, content: new Legend({ view: view, layerInfos: [{ layer: legendDummy }, { layer: bridgeLayer }] }), tooltip: "Legend", group: "top-right" });
       const basemapSource = [wvImageryBasemap, enhancedBasemap, Basemap.fromId("hybrid"), Basemap.fromId("streets-vector"), Basemap.fromId("streets-night-vector"), Basemap.fromId("streets-navigation-vector"), Basemap.fromId("topo-vector"), Basemap.fromId("gray-vector"), Basemap.fromId("dark-gray-vector"), Basemap.fromId("terrain"), Basemap.fromId("osm")].filter(b => b); 
       const bgExpand = new Expand({ view: view, content: new BasemapGallery({ view: view, source: basemapSource }), tooltip: "Basemaps", group: "top-right" });
       const llExpand = new Expand({ view: view, content: new LayerList({ view: view }), tooltip: "Layers", group: "top-right" });
-      view.ui.add([bridgeExpand, builderExpand, searchExpand, legendExpand, bgExpand, llExpand], "top-right");
+      
+      view.ui.add([bridgeExpand, builderExpand, searchExpand, addressExpand, legendExpand, bgExpand, llExpand], "top-right");
 
       // --- HELPERS (Measures & Geometry) ---
       function getMeasureOnLine(g, p) { let bestD=Infinity, bestM=null, bestP=null; g.paths.forEach(pth => { for(let i=0; i<pth.length-1; i++) { const A=pth[i], B=pth[i+1], mA=A[A.length-1], mB=B[B.length-1]; if(mA===undefined) continue; const seg = { type:"polyline", paths:[[[A[0],A[1]],[B[0],B[1]]]], spatialReference:g.spatialReference }; const n = geometryEngine.nearestCoordinate(seg, p); if(n.distance < bestD) { bestD = n.distance; bestP = n.coordinate; const full = geometryEngine.distance(new Point({x:A[0],y:A[1],spatialReference:g.spatialReference}), new Point({x:B[0],y:B[1],spatialReference:g.spatialReference})); const part = geometryEngine.distance(new Point({x:A[0],y:A[1],spatialReference:g.spatialReference}), n.coordinate); const r = (full===0)?0:part/full; bestM = mA + (mB-mA)*r; } }}); return {m:bestM, distance:bestD, snapPoint:bestP}; }
@@ -403,12 +459,20 @@
             let sName = "Unknown"; 
             if (streetResults.features.length > 0) {
                const routeBuffer = geometryEngine.buffer(item.graphic.geometry, 5, "meters");
-               let maxOverlap = 0;
+               let bestOverlap = -1;
+               
                streetResults.features.forEach(s => {
                   const intersection = geometryEngine.intersect(routeBuffer, s.geometry);
-                  if (intersection) { const len = geometryEngine.planarLength(intersection, "meters"); if (len > maxOverlap) { maxOverlap = len; sName = s.attributes.STREET_NAME || "Unnamed"; } }
+                  if (intersection) { 
+                      const len = geometryEngine.planarLength(intersection, "meters"); 
+                      if (len > bestOverlap) { 
+                          bestOverlap = len;
+                          sName = s.attributes.STREET_NAME || "Unnamed"; 
+                      }
+                  }
                });
-               if (maxOverlap < 1) {
+               
+               if (bestOverlap <= 1) {
                   let sDist = Infinity;
                   streetResults.features.forEach(s => { const d = geometryEngine.distance(item.snap, s.geometry); if(d < sDist) { sDist=d; sName=s.attributes.STREET_NAME||"Unnamed"; } });
                }
@@ -428,16 +492,15 @@
         });
       });
 
-      // --- FIND MEASURE LOGIC (LAYER 89 SCHEMA FIX) ---
+      // --- FIND MEASURE LOGIC (FIX APPLIED HERE: TODATE) ---
       function executeRouteSearch(rID, bmp, emp) {
          view.graphics.removeAll();
          document.getElementById("infoPanel").style.display = "block";
          document.getElementById("resultsList").innerHTML = "<p>Locating...</p>";
          view.closePopup(); 
          
-         // HARDCODED CORRECT SCHEMA FIELD FOR LAYER 89: CO_ROUTEID
          const q = new Query({ 
-             where: `CO_ROUTEID = '${rID}'`, 
+             where: `CO_ROUTEID = '${rID}' AND TODATE IS NULL`, 
              returnGeometry: true, 
              returnM: true, 
              outFields: ["*"], 
@@ -494,11 +557,9 @@
           
           if (bridgeResults.features.length === 0) {
               if (searchArea) {
-                  // Fallback for Spatial Search: Zoom to area anyway
                   view.graphics.removeAll();
                   view.graphics.add(new Graphic({ geometry: searchArea, symbol: { type: "simple-fill", color: [255, 0, 0, 0.1], outline: { color: "red", style: "dash" } } }));
-                  view.goTo(searchArea.extent.expand(5)); // Zoom out a bit more context
-                  
+                  view.goTo(searchArea.extent.expand(5));
                   document.getElementById("resultsList").innerHTML = `
                       <div class="bridge-card" style="border-left-color: #d9534f;">
                           <div class="route-title" style="color: #d9534f;">No Bridge Found</div>
@@ -548,7 +609,7 @@
           document.getElementById("infoPanel").style.display = "block";
       }
 
-      // --- BRIDGE SEARCH (LAYER 89 SCHEMA FIX) ---
+      // --- BRIDGE SEARCH (FIX APPLIED HERE: TODATE) ---
       document.getElementById("btnFindBridge").addEventListener("click", () => {
         let rawInput = document.getElementById("inputBridgeID").value.trim();
         if (!rawInput) { alert("Please enter a Bridge Number or BARSID."); return; }
@@ -584,9 +645,9 @@
         const paddedRoute = routeNum.padStart(4, "0");
         const lrsQueryStr = `${countyCode}_${paddedRoute}${subRouteNum}%`;
         
-        // HARDCODED CORRECT SCHEMA FIELD FOR LAYER 89: CO_ROUTEID
+        // FIX: Updated to use TODATE for Network Layer (Layer 89)
         const q = new Query({ 
-            where: `CO_ROUTEID LIKE '${lrsQueryStr}'`, 
+            where: `CO_ROUTEID LIKE '${lrsQueryStr}' AND TODATE IS NULL`, 
             returnGeometry: true, 
             returnM: true, 
             outFields: ["*"] 
@@ -632,58 +693,5 @@
 
     });
   </script>
-</head>
-<body>
-  <div id="viewDiv"></div>
-  
-  <div id="infoPanel" class="panel-base">
-    <div class="panel-header">
-      <span>Route Information</span>
-      <span id="btnCloseInfo" class="close-icon">&times;</span>
-    </div>
-    <div id="resultsList">
-      <p style="color: #666; font-style: italic;">Click a route on the map or use the Search tool to see details.</p>
-    </div>
-    <button id="btnClear" class="clear-btn">Clear Selection</button>
-  </div>
-
-  <div id="searchPanel" class="panel-base">
-    <div class="panel-header">Find Measure</div>
-    <input type="text" id="inputRouteID" class="search-input" placeholder="Route ID..." />
-    <div class="search-row">
-      <input type="number" id="inputBMP" class="search-input" placeholder="BMP" step="0.01" />
-      <input type="number" id="inputEMP" class="search-input" placeholder="EMP" step="0.01" />
-    </div>
-    <button id="btnSearch" class="action-btn">Go</button>
-  </div>
-
-  <div id="bridgePanel" class="panel-base">
-    <div class="panel-header">Bridge Lookup</div>
-    <div style="font-size:12px; color:#555; margin-bottom:5px;">Format: 20-77-103.65 or BARSID (e.g. 20A123)</div>
-    <input type="text" id="inputBridgeID" class="search-input" placeholder="Bridge Number or BARSID" />
-    <button id="btnFindBridge" class="action-btn">Find Bridge</button>
-  </div>
-
-  <div id="builderPanel" class="panel-base">
-    <div class="panel-header">Route Builder</div>
-    <select id="selCounty" class="builder-select"><option value="">Select County</option></select>
-    <select id="selSystem" class="builder-select" disabled></select>
-    <select id="selRoute" class="builder-select" disabled></select>
-    <select id="selSub" class="builder-select" disabled></select>
-    <select id="selSupp" class="builder-select" disabled></select>
-    <select id="selDir" class="builder-select" disabled></select>
-    <button id="btnBuild" class="action-btn" disabled>Build & Locate</button>
-  </div>
-
-  <div id="detailsModal">
-    <div class="modal-content">
-      <div class="panel-header">
-        <span>RIL Details</span>
-        <span class="close-icon close-icon-modal">&times;</span>
-      </div>
-      <div id="modalDataContent">Loading...</div>
-    </div>
-  </div>
-
 </body>
 </html>

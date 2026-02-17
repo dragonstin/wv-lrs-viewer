@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
-  <title>WV DOT LRS Viewer v71 (Stable)</title>
+  <title>WV DOT LRS Viewer v73 (County Fix)</title>
 
   <style>
     html, body, #viewDiv { padding: 0; margin: 0; height: 100%; width: 100%; font-family: "Avenir Next", "Helvetica Neue", Helvetica, Arial, sans-serif; }
@@ -155,8 +155,8 @@
       "esri/rest/support/Query", "esri/rest/query", "esri/geometry/Point", "esri/geometry/Polyline",
       "esri/geometry/geometryEngine", "esri/Graphic", "esri/widgets/BasemapGallery",
       "esri/widgets/LayerList", "esri/widgets/Expand", "esri/widgets/Home", "esri/widgets/Legend", 
-      "esri/widgets/Search"
-    ], (Map, MapView, FeatureLayer, GroupLayer, Basemap, TileLayer, VectorTileLayer, Query, query, Point, Polyline, geometryEngine, Graphic, BasemapGallery, LayerList, Expand, Home, Legend, Search) => {
+      "esri/widgets/Search", "esri/geometry/Extent"
+    ], (Map, MapView, FeatureLayer, GroupLayer, Basemap, TileLayer, VectorTileLayer, Query, query, Point, Polyline, geometryEngine, Graphic, BasemapGallery, LayerList, Expand, Home, Legend, Search, Extent) => {
 
       // 1. ENHANCED CONTRAST (Light)
       const enhancedBasemap = new Basemap({
@@ -196,7 +196,22 @@
       const rillrsDetailsUrl = "https://gis.transportation.wv.gov/api/rillrs/details/";
 
       const systemMap = { "1": "Interstate", "2": "US Highway", "3": "WV Route", "4": "Co. Route", "6": "State Park/Forest", "7": "FANS", "8": "HARP", "0": "MNS" };
-      const countyMap = { "01": "Barbour", "02": "Berkeley", "03": "Boone", "04": "Braxton", "05": "Brooke", "06": "Cabell", "07": "Calhoun", "08": "Clay", "09": "Doddridge", "10": "Fayette", "11": "Gilmer", "12": "Grant", "13": "Greenbrier", "14": "Hampshire", "15": "Hancock", "16": "Hardy", "17": "Harrison", "18": "Jackson", "19": "Jefferson", "20": "Kanawha", "21": "Lewis", "22": "Lincoln", "23": "Logan", "24": "Marion", "25": "Marshall", "26": "Mason", "27": "McDowell", "28": "Mercer", "29": "Mineral", "30": "Mingo", "31": "Monongalia", "32": "Monroe", "33": "Morgan", "34": "Nicholas", "35": "Ohio", "36": "Pendleton", "37": "Pleasants", "38": "Pocahontas", "39": "Preston", "40": "Putnam", "41": "Raleigh", "42": "Randolph", "43": "Ritchie", "44": "Roane", "45": "Summers", "46": "Taylor", "47": "Tucker", "48": "Tyler", "49": "Upshur", "50": "Wayne", "51": "Webster", "52": "Wetzel", "53": "Wirt", "54": "Wood", "55": "Wyoming" };
+      
+      // FIX: CORRECTED WV COUNTY CODES (McDowell=24, Marion=25, Marshall=26, Mason=27)
+      const countyMap = { 
+        "01": "Barbour", "02": "Berkeley", "03": "Boone", "04": "Braxton", "05": "Brooke", 
+        "06": "Cabell", "07": "Calhoun", "08": "Clay", "09": "Doddridge", "10": "Fayette", 
+        "11": "Gilmer", "12": "Grant", "13": "Greenbrier", "14": "Hampshire", "15": "Hancock", 
+        "16": "Hardy", "17": "Harrison", "18": "Jackson", "19": "Jefferson", "20": "Kanawha", 
+        "21": "Lewis", "22": "Lincoln", "23": "Logan", 
+        "24": "McDowell", "25": "Marion", "26": "Marshall", "27": "Mason", 
+        "28": "Mercer", "29": "Mineral", "30": "Mingo", "31": "Monongalia", "32": "Monroe", 
+        "33": "Morgan", "34": "Nicholas", "35": "Ohio", "36": "Pendleton", "37": "Pleasants", 
+        "38": "Pocahontas", "39": "Preston", "40": "Putnam", "41": "Raleigh", "42": "Randolph", 
+        "43": "Ritchie", "44": "Roane", "45": "Summers", "46": "Taylor", "47": "Tucker", 
+        "48": "Tyler", "49": "Upshur", "50": "Wayne", "51": "Webster", "52": "Wetzel", 
+        "53": "Wirt", "54": "Wood", "55": "Wyoming" 
+      };
 
       const routeRenderer = {
         type: "unique-value",
@@ -249,8 +264,28 @@
       const bridgeExpand = new Expand({ view: view, content: document.getElementById("bridgePanel"), expandIcon: "magnifying-glass", tooltip: "Find Bridge", group: "top-right" });
       const builderExpand = new Expand({ view: view, content: document.getElementById("builderPanel"), expandIcon: "hammer", tooltip: "Route Builder", group: "top-right" });
       const searchExpand = new Expand({ view: view, content: document.getElementById("searchPanel"), expandIcon: "search", tooltip: "Find Measure", group: "top-right" });
-      const addressSearch = new Search({ view: view });
-      const addressExpand = new Expand({ view: view, content: addressSearch, expandIcon: "road-sign", tooltip: "Address Search", group: "top-right" });
+      
+      const wvExtent = new Extent({
+        xmin: -9199945, ymin: 4467222, xmax: -8651646, ymax: 4959210,
+        spatialReference: { wkid: 3857 }
+      });
+
+      const addressSearch = new Search({ 
+        view: view, 
+        includeDefaultSources: false, 
+        sources: [{
+            url: "https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer",
+            singleLineFieldName: "SingleLine",
+            name: "WV Address Search",
+            placeholder: "Search West Virginia Address",
+            countryCode: "US",
+            filter: {
+                geometry: wvExtent 
+            }
+        }]
+      });
+      const addressExpand = new Expand({ view: view, content: addressSearch, expandIcon: "map-pin", tooltip: "Address Search", group: "top-right" });
+
       const legendExpand = new Expand({ view: view, content: new Legend({ view: view, layerInfos: [{ layer: legendDummy }, { layer: bridgeLayer }] }), tooltip: "Legend", group: "top-right" });
       const basemapSource = [wvImageryBasemap, enhancedBasemap, Basemap.fromId("hybrid"), Basemap.fromId("streets-vector"), Basemap.fromId("streets-night-vector"), Basemap.fromId("streets-navigation-vector"), Basemap.fromId("topo-vector"), Basemap.fromId("gray-vector"), Basemap.fromId("dark-gray-vector"), Basemap.fromId("terrain"), Basemap.fromId("osm")].filter(b => b); 
       const bgExpand = new Expand({ view: view, content: new BasemapGallery({ view: view, source: basemapSource }), tooltip: "Basemaps", group: "top-right" });

@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
-  <title>WV DOT LRS Viewer v96 (Boundary Polygon Fix)</title>
+  <title>WV DOT LRS Viewer v97 (Picker Fix)</title>
 
   <style>
     html, body, #viewDiv { padding: 0; margin: 0; height: 100%; width: 100%; font-family: "Avenir Next", "Helvetica Neue", Helvetica, Arial, sans-serif; }
@@ -242,7 +242,6 @@
       const streetLayerUrl = "https://gis.transportation.wv.gov/arcgis/rest/services/Roads_And_Highways/Publication_LRS/FeatureServer/118";
       const networkLayerUrl = "https://gis.transportation.wv.gov/arcgis/rest/services/Roads_And_Highways/Publication_LRS/MapServer/89";
       
-      // NEW: Incorporated Places Layer (Official Boundaries)
       const boundariesLayerUrl = "https://gis.transportation.wv.gov/arcgis/rest/services/Boundaries/FeatureServer/15";
 
       const rillrsRouteUrl = "https://gis.transportation.wv.gov/api/rillrs/route/"; 
@@ -319,7 +318,6 @@
       const bridgeExpand = new Expand({ view: view, content: document.getElementById("bridgePanel"), expandIconClass: "custom-bridge-icon", tooltip: "Find Bridge", group: "top-right" });
       const builderExpand = new Expand({ view: view, content: document.getElementById("builderPanel"), expandIcon: "hammer", tooltip: "Route Builder", group: "top-right" });
       
-      // UNIFIED CONTEXT / MEASURE TOOL
       const contextExpand = new Expand({ view: view, content: document.getElementById("contextPanel"), expandIcon: "measure-line", tooltip: "Find Measure", group: "top-right" });
 
       const wvExtent = new Extent({
@@ -364,7 +362,6 @@
                     if (!A || !B || A.length < 2 || B.length < 2) continue;
                     if (A[0] === B[0] && A[1] === B[1]) continue;
 
-                    // Manual distance check to avoid Geometry Engine Union Crash
                     const p1 = new Point({x:A[0], y:A[1], spatialReference: g.spatialReference});
                     const p2 = new Point({x:B[0], y:B[1], spatialReference: g.spatialReference});
                     const seg = new Polyline({ paths: [[[A[0], A[1]], [B[0], B[1]]]], spatialReference: g.spatialReference });
@@ -490,6 +487,7 @@
              const parts = input.split(",");
              const lat = parseFloat(parts[0]);
              const lon = parseFloat(parts[1]);
+             // Force Web Mercator
              return webMercatorUtils.geographicToWebMercator(new Point({ latitude: lat, longitude: lon, spatialReference: { wkid: 4326 } })); 
          } 
          
@@ -530,7 +528,6 @@
              const feat = res.feature;
              
              // FIX 3: Strict Validation (The "Sweetland" Guardrail)
-             // If geocoder thinks it's a City, but our Official Layer (step 2) didn't find it -> BLOCK IT.
              const isAddress = /\d/.test(input); 
              if (!isAddress && !boundaryFound && (res.feature.attributes.Type === "City" || res.feature.attributes.Type === "Locality")) {
                   throw new Error(`Location '${input}' is not in the Official Incorporated Places dataset.`);
@@ -624,6 +621,7 @@
                          const parts = val.split(",");
                          const lat = parseFloat(parts[0]);
                          const lon = parseFloat(parts[1]);
+                         // Force WebMercator for coordinates too
                          const wgsPt = new Point({ latitude: lat, longitude: lon, spatialReference: { wkid: 4326 } });
                          pt = webMercatorUtils.geographicToWebMercator(wgsPt);
                      } else {
@@ -720,9 +718,9 @@
          }
       });
       
-      // ... (Rest of logic remains the same) ...
-      // ... fetchRilDetails, map click, resetDropdown, etc ... 
+      // ... (Rest of fetchRilDetails, map click, resetDropdown, etc ... )
       
+      // --- API FETCH FUNCTION (EXACT G2M INTEGRATION) ---
       window.fetchRilDetails = async (routeId, measure) => {
         const modal = document.getElementById("detailsModal");
         const content = document.getElementById("modalDataContent");
@@ -830,6 +828,25 @@
 
       // --- MAP CLICK LOGIC ---
       view.on("click", (event) => {
+        
+        // INTERCEPT FOR PICKING MODE
+        if (pickingTarget) {
+            event.stopPropagation();
+            
+            // Just grab coordinates. We will snap later on "Calculate".
+            // Explicit conversion to ensure Lat/Long exist
+            const geoPt = webMercatorUtils.webMercatorToGeographic(event.mapPoint);
+            const lat = geoPt.latitude.toFixed(6);
+            const lon = geoPt.longitude.toFixed(6);
+            
+            document.getElementById(pickingTarget === 'BMP' ? 'ctxBMPRef' : 'ctxEMPRef').value = `${lat}, ${lon}`;
+            
+            // Reset cursor
+            togglePickMode(pickingTarget); // This will toggle it OFF
+            return;
+        }
+
+
         document.getElementById("infoPanel").style.display = "block";
         document.getElementById("resultsList").innerHTML = "<p>Searching...</p>";
         const mQuery = new Query({ geometry: event.mapPoint, distance: 30, units: "meters", spatialRelationship: "intersects", returnGeometry: true, returnM: true, outFields: ["ROUTEID"], outSpatialReference: view.spatialReference });

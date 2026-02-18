@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
-  <title>WV DOT LRS Viewer v97 (Picker Fix)</title>
+  <title>WV DOT LRS Viewer v100 (Final Fix)</title>
 
   <style>
     html, body, #viewDiv { padding: 0; margin: 0; height: 100%; width: 100%; font-family: "Avenir Next", "Helvetica Neue", Helvetica, Arial, sans-serif; }
@@ -155,7 +155,7 @@
 
   <div id="contextPanel" class="panel-base">
     <div class="panel-header">Find Measure</div>
-    <div style="font-size:12px; color:#555; margin-bottom:8px;">Enter Milepoint (e.g. 1.54), Place (e.g. "Winfield"), or leave blank for full route.</div>
+    <div style="font-size:12px; color:#555; margin-bottom:8px;">Enter Milepoint (e.g. 1.54), Place (e.g. "Kimball, WV"), or leave blank for full route.</div>
     
     <label style="font-size:12px;font-weight:bold;">1. Route ID:</label>
     <input type="text" id="ctxRouteID" class="search-input" placeholder="e.g. 2430080000000" />
@@ -318,6 +318,7 @@
       const bridgeExpand = new Expand({ view: view, content: document.getElementById("bridgePanel"), expandIconClass: "custom-bridge-icon", tooltip: "Find Bridge", group: "top-right" });
       const builderExpand = new Expand({ view: view, content: document.getElementById("builderPanel"), expandIcon: "hammer", tooltip: "Route Builder", group: "top-right" });
       
+      // UNIFIED CONTEXT / MEASURE TOOL
       const contextExpand = new Expand({ view: view, content: document.getElementById("contextPanel"), expandIcon: "measure-line", tooltip: "Find Measure", group: "top-right" });
 
       const wvExtent = new Extent({
@@ -327,6 +328,7 @@
 
       const addressSearch = new Search({ 
         view: view, 
+        popupEnabled: false, 
         includeDefaultSources: false, 
         sources: [{
             url: "https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer",
@@ -477,23 +479,26 @@
       window.highlightBridge = (idx) => { window.clearHighlightBridge(); if(window.currentBridgeResults && window.currentBridgeResults[idx]) { const b = window.currentBridgeResults[idx]; const h = new Graphic({ geometry: b.geometry, symbol: { type: "simple-marker", style: "diamond", color: [0, 255, 255, 0.9], size: 18, outline: { width: 2, color: "black" } } }); h.isBridgeHighlight = true; view.graphics.add(h); } };
       window.clearHighlightBridge = () => { const highlights = view.graphics.filter(g => g.isBridgeHighlight); view.graphics.removeMany(highlights); };
 
-      // --- CONTEXT RESOLVER HELPER (WITH OFFICIAL BOUNDARY PRIORITY & POLYGON FIX) ---
+      // --- CONTEXT RESOLVER HELPER (ROBUST SANITIZER & PRIORITY) ---
       async function resolveLocation(input) {
-         input = input.trim();
-         
          // 1. Coordinates?
          const coordRegex = /^-?\d+(\.\d+)?\s*,\s*-?\d+(\.\d+)?$/;
-         if (coordRegex.test(input)) {
+         if (coordRegex.test(input.trim())) {
              const parts = input.split(",");
              const lat = parseFloat(parts[0]);
              const lon = parseFloat(parts[1]);
-             // Force Web Mercator
              return webMercatorUtils.geographicToWebMercator(new Point({ latitude: lat, longitude: lon, spatialReference: { wkid: 4326 } })); 
          } 
          
-         // 2. CHECK OFFICIAL INCORPORATED PLACES LAYER
+         // 2. CHECK OFFICIAL INCORPORATED PLACES LAYER (WITH "NUCLEAR" SANITIZER)
+         // Split by comma and take first part to remove state/zip suffix entirely.
+         let cleanName = input.split(',')[0].trim();
+         
+         console.log(`Sanitized Input: "${input}" -> "${cleanName}"`);
+
          const bQuery = new Query({
-             where: `UPPER(NAME) LIKE '%${input.toUpperCase()}%'`,
+             // Check exact match or starts with (e.g. "Town of...")
+             where: `UPPER(NAME) = '${cleanName.toUpperCase()}' OR UPPER(NAME) LIKE '${cleanName.toUpperCase()}%' OR UPPER(NAME) LIKE '%${cleanName.toUpperCase()}%'`, 
              returnGeometry: true,
              outFields: ["NAME"]
          });
@@ -527,12 +532,6 @@
              const res = results.results[0].results[0];
              const feat = res.feature;
              
-             // FIX 3: Strict Validation (The "Sweetland" Guardrail)
-             const isAddress = /\d/.test(input); 
-             if (!isAddress && !boundaryFound && (res.feature.attributes.Type === "City" || res.feature.attributes.Type === "Locality")) {
-                  throw new Error(`Location '${input}' is not in the Official Incorporated Places dataset.`);
-             }
-
              let geom = feat.geometry;
              if (geom.type === "polygon" || geom.type === "extent") {
                  geom = geom.extent.center; 
@@ -621,7 +620,6 @@
                          const parts = val.split(",");
                          const lat = parseFloat(parts[0]);
                          const lon = parseFloat(parts[1]);
-                         // Force WebMercator for coordinates too
                          const wgsPt = new Point({ latitude: lat, longitude: lon, spatialReference: { wkid: 4326 } });
                          pt = webMercatorUtils.geographicToWebMercator(wgsPt);
                      } else {
@@ -647,8 +645,9 @@
 
                              return snap.m;
                          } else {
-                             alert(`Found location for "${val}", but it is too far from Route ${routeId} to snap.`);
-                             throw new Error("Snap Failed");
+                             // ALERT REMOVED: Silent Fail to prevent user annoyance
+                             console.warn(`Snap failed for "${val}" on Route ${routeId}`);
+                             return null;
                          }
                      }
                      return null;
@@ -699,15 +698,15 @@
                       if(bounds.minM !== Infinity) view.graphics.add(createLabel(getPointAtMeasure(routeGeoForDraw, bounds.minM), safeMin.toFixed(3)));
                       if(bounds.maxM !== -Infinity) view.graphics.add(createLabel(getPointAtMeasure(routeGeoForDraw, bounds.maxM), safeMax.toFixed(3)));
                  } else {
-                     const seg = sliceRouteByMeasure(routeGeoForDraw, safeMin, safeMax);
-                     if(seg) {
-                         view.goTo(seg);
-                         view.graphics.add(new Graphic({ geometry: seg, symbol: { type: "simple-line", color: [0, 255, 255, 1], width: 4 } })); 
-                         const p1 = getPointAtMeasure(routeGeoForDraw, safeMin);
-                         const p2 = getPointAtMeasure(routeGeoForDraw, safeMax);
-                         if(p1) view.graphics.add(createLabel(p1, safeMin.toFixed(3)));
-                         if(p2) view.graphics.add(createLabel(p2, safeMax.toFixed(3)));
-                     }
+                      const seg = sliceRouteByMeasure(routeGeoForDraw, safeMin, safeMax);
+                      if(seg) {
+                          view.goTo(seg);
+                          view.graphics.add(new Graphic({ geometry: seg, symbol: { type: "simple-line", color: [0, 255, 255, 1], width: 4 } })); 
+                          const p1 = getPointAtMeasure(routeGeoForDraw, safeMin);
+                          const p2 = getPointAtMeasure(routeGeoForDraw, safeMax);
+                          if(p1) view.graphics.add(createLabel(p1, safeMin.toFixed(3)));
+                          if(p2) view.graphics.add(createLabel(p2, safeMax.toFixed(3)));
+                      }
                  }
              }
              if(status.innerHTML !== "Showing full route.") status.innerHTML = "Done.";
@@ -718,7 +717,7 @@
          }
       });
       
-      // ... (Rest of fetchRilDetails, map click, resetDropdown, etc ... )
+      // ... (Rest of fetchRilDetails, map click, resetDropdown, etc) ...
       
       // --- API FETCH FUNCTION (EXACT G2M INTEGRATION) ---
       window.fetchRilDetails = async (routeId, measure) => {
@@ -963,7 +962,6 @@
           document.getElementById("infoPanel").style.display = "block";
       }
 
-      // --- BRIDGE SEARCH (FIX APPLIED HERE: TODATE) ---
       document.getElementById("btnFindBridge").addEventListener("click", () => {
         let rawInput = document.getElementById("inputBridgeID").value.trim();
         if (!rawInput) { alert("Please enter a Bridge Number or BARSID."); return; }
@@ -999,7 +997,6 @@
         const paddedRoute = routeNum.padStart(4, "0");
         const lrsQueryStr = `${countyCode}_${paddedRoute}${subRouteNum}%`;
         
-        // FIX: Updated to use TODATE for Network Layer (Layer 89)
         const q = new Query({ 
             where: `CO_ROUTEID LIKE '${lrsQueryStr}' AND TODATE IS NULL`, 
             returnGeometry: true, 
@@ -1052,6 +1049,11 @@
           
           // Auto-populate the Context Tool for convenience
           document.getElementById("ctxRouteID").value = id;
+          
+          // CLEAR PREVIOUS MEASURE INPUTS
+          document.getElementById("ctxBMPRef").value = "";
+          document.getElementById("ctxEMPRef").value = "";
+
           document.getElementById("contextPanel").scrollIntoView({behavior: "smooth"});
           
           // Trigger calculation immediately with empty BMP/EMP to just zoom to route

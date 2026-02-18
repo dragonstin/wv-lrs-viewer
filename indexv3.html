@@ -412,6 +412,10 @@
         }
         if(min === Infinity) min = 0;
         if(max === -Infinity) max = 0;
+        
+        // FIX: Prevent negative zero artifacts
+        if (Math.abs(min) < 1e-6) min = 0;
+        
         return {minM:min, maxM:max}; 
       }
       
@@ -609,7 +613,11 @@
              async function processInput(val, type) {
                  if(!isNaN(parseFloat(val)) && isFinite(val) && !val.includes(",")) {
                      const m = parseFloat(val);
-                     if (m < bounds.minM || m > bounds.maxM) {
+                     
+                     // FIX: Add Epsilon Tolerance for Floating Point Math
+                     const eps = 0.001; 
+                     
+                     if (m < bounds.minM - eps || m > bounds.maxM + eps) {
                          alert(`${type} Measure ${m} out of range (${bounds.minM.toFixed(3)} - ${bounds.maxM.toFixed(3)})`);
                          throw new Error("Out of range");
                      }

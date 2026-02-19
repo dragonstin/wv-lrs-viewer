@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
-  <title>WV DOT LRS Viewer v100 (Final Fix)</title>
+  <title>Geometry & Measures</title>
 
   <style>
     html, body, #viewDiv { padding: 0; margin: 0; height: 100%; width: 100%; font-family: "Avenir Next", "Helvetica Neue", Helvetica, Arial, sans-serif; }
@@ -220,7 +220,7 @@
         <h3 style="margin-top:0; color:#0079c1;">Widgets & Tools</h3>
         <ul class="help-list">
             <li>
-                <span class="help-icon-box"><span class="esri-icon-settings" style="font-size: 16px;"></span></span>
+                <span class="help-icon-box"><span style="font-size: 16px;">🔨</span></span>
                 <div><b>Route Builder:</b> Use this tool to piece together a Route ID by selecting County, System, Route, etc., if you do not already know it.</div>
             </li>
             <li>
@@ -392,7 +392,7 @@
       const bridgeExpand = new Expand({ view: view, content: document.getElementById("bridgePanel"), expandIconClass: "custom-bridge-icon", expandTooltip: "Find Bridge", group: "top-right" });
       
       // FIXED ICONS: Standardized to stable legacy esri-icon font classes so they match HTML modal
-      const builderExpand = new Expand({ view: view, content: document.getElementById("builderPanel"), expandIconClass: "esri-icon-settings", expandTooltip: "Route Builder", group: "top-right" });
+      const builderExpand = new Expand({ view: view, content: document.getElementById("builderPanel"), expandIcon: "hammer", expandTooltip: "Route Builder", group: "top-right" });
       const contextExpand = new Expand({ view: view, content: document.getElementById("contextPanel"), expandIconClass: "esri-icon-polyline", expandTooltip: "Find Measure", group: "top-right" });
 
       const wvExtent = new Extent({

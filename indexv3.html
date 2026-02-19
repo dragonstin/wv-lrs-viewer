@@ -315,11 +315,11 @@
       view.ui.add(locateWidget, "top-left");
       view.ui.add("logoWidget", "bottom-left");
 
-      const bridgeExpand = new Expand({ view: view, content: document.getElementById("bridgePanel"), expandIconClass: "custom-bridge-icon", tooltip: "Find Bridge", group: "top-right" });
-      const builderExpand = new Expand({ view: view, content: document.getElementById("builderPanel"), expandIcon: "hammer", tooltip: "Route Builder", group: "top-right" });
+      const bridgeExpand = new Expand({ view: view, content: document.getElementById("bridgePanel"), expandIconClass: "custom-bridge-icon", expandTooltip: "Find Bridge", group: "top-right" });
+      const builderExpand = new Expand({ view: view, content: document.getElementById("builderPanel"), expandIcon: "hammer", expandTooltip: "Route Builder", group: "top-right" });
       
       // UNIFIED CONTEXT / MEASURE TOOL
-      const contextExpand = new Expand({ view: view, content: document.getElementById("contextPanel"), expandIcon: "measure-line", tooltip: "Find Measure", group: "top-right" });
+      const contextExpand = new Expand({ view: view, content: document.getElementById("contextPanel"), expandIcon: "measure-line", expandTooltip: "Find Measure", group: "top-right" });
 
       const wvExtent = new Extent({
         xmin: -9199945, ymin: 4467222, xmax: -8651646, ymax: 4959210,
@@ -339,14 +339,15 @@
             filter: { geometry: wvExtent }
         }]
       });
-      const addressExpand = new Expand({ view: view, content: addressSearch, expandIcon: "magnifying-glass", tooltip: "Address Search", group: "top-right" });
+      const addressExpand = new Expand({ view: view, content: addressSearch, expandIcon: "magnifying-glass", expandTooltip: "Address Search", group: "top-right" });
 
-      const legendExpand = new Expand({ view: view, content: new Legend({ view: view, layerInfos: [{ layer: legendDummy }, { layer: bridgeLayer }] }), tooltip: "Legend", group: "top-right" });
+      const legendExpand = new Expand({ view: view, content: new Legend({ view: view, layerInfos: [{ layer: legendDummy }, { layer: bridgeLayer }] }), expandTooltip: "Legend", group: "top-right" });
       const basemapSource = [wvImageryBasemap, enhancedBasemap, Basemap.fromId("hybrid"), Basemap.fromId("streets-vector"), Basemap.fromId("streets-night-vector"), Basemap.fromId("streets-navigation-vector"), Basemap.fromId("topo-vector"), Basemap.fromId("gray-vector"), Basemap.fromId("dark-gray-vector"), Basemap.fromId("terrain"), Basemap.fromId("osm")].filter(b => b); 
-      const bgExpand = new Expand({ view: view, content: new BasemapGallery({ view: view, source: basemapSource }), tooltip: "Basemaps", group: "top-right" });
-      const llExpand = new Expand({ view: view, content: new LayerList({ view: view }), tooltip: "Layers", group: "top-right" });
+      const bgExpand = new Expand({ view: view, content: new BasemapGallery({ view: view, source: basemapSource }), expandTooltip: "Basemaps", group: "top-right" });
+      const llExpand = new Expand({ view: view, content: new LayerList({ view: view }), expandTooltip: "Layers", group: "top-right" });
       
-      view.ui.add([contextExpand, bridgeExpand, builderExpand, addressExpand, legendExpand, bgExpand, llExpand], "top-right");
+      // Added new array order based on user input
+      view.ui.add([builderExpand, contextExpand, addressExpand, bridgeExpand, llExpand, bgExpand, legendExpand], "top-right");
 
       // --- CRITICAL FIX: FEATURE ITERATOR FOR M-VALUES & INFINITE SNAP ---
       function getMeasureOnFeatureArray(features, p) { 

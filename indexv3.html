@@ -391,7 +391,7 @@
 
       const bridgeExpand = new Expand({ view: view, content: document.getElementById("bridgePanel"), expandIconClass: "custom-bridge-icon", expandTooltip: "Find Bridge", group: "top-right" });
       
-      // FIXED ICONS: Standardized to stable legacy esri-icon font classes so they match HTML modal
+      // FIXED ICONS: Modern Wrench used in Expand widget to match HTML modal
       const builderExpand = new Expand({ view: view, content: document.getElementById("builderPanel"), expandIcon: "hammer", expandTooltip: "Route Builder", group: "top-right" });
       const contextExpand = new Expand({ view: view, content: document.getElementById("contextPanel"), expandIconClass: "esri-icon-polyline", expandTooltip: "Find Measure", group: "top-right" });
 
@@ -687,6 +687,7 @@
 
              // HELPER: PROCESS HYBRID INPUT
              async function processInput(val, type) {
+                 // Check if it's purely a number (like a Milepoint)
                  if(!isNaN(parseFloat(val)) && isFinite(val) && !val.includes(",")) {
                      const m = parseFloat(val);
                      
@@ -700,13 +701,18 @@
                      return m;
                  } else {
                      let pt = null;
-                     if (val.includes(",")) {
+                     
+                     // FIX: Strict regex check for Lat/Long structure instead of just looking for a comma
+                     const coordRegex = /^-?\d+(\.\d+)?\s*,\s*-?\d+(\.\d+)?$/;
+                     
+                     if (coordRegex.test(val.trim())) {
                          const parts = val.split(",");
                          const lat = parseFloat(parts[0]);
                          const lon = parseFloat(parts[1]);
                          const wgsPt = new Point({ latitude: lat, longitude: lon, spatialReference: { wkid: 4326 } });
                          pt = webMercatorUtils.geographicToWebMercator(wgsPt);
                      } else {
+                         // It's a string search like "Iaeger, WV"
                          try {
                             pt = await resolveLocation(val);
                          } catch (err) {

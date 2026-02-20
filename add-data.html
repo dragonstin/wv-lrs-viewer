@@ -31,7 +31,7 @@
     .close-icon { cursor: pointer; font-size: 18px; color: #888; }
     .close-icon:hover { color: #000; }
 
-    #builderPanel, #bridgePanel, #contextPanel, #addDataPanel { width: 300px; background: white; }
+    #builderPanel, #bridgePanel, #contextPanel, #addDataPanel, #layerToolsPanel { width: 300px; background: white; }
 
     .search-input, .builder-select {
       width: 100%; padding: 8px; margin-bottom: 8px;
@@ -99,7 +99,7 @@
     .details-btn:hover { background-color: #005a8f; }
     .details-btn.hidden { display: none; } 
 
-    #ctxStatus, #addDataStatus { font-size: 11px; color: #666; margin-top: 5px; font-style: italic; min-height: 1.2em; }
+    #ctxStatus, #addDataStatus, #toolsStatus { font-size: 11px; color: #666; margin-top: 5px; font-style: italic; min-height: 1.2em; }
 
     .custom-bridge-icon {
         background-image: url('https://raw.githubusercontent.com/Sevin47/Models/eeaee3336ac661323fdbdc22f23f85e951da8502/bridge-svgrepo-com.png');
@@ -131,6 +131,13 @@
     }
     .help-list { list-style: none; padding: 0; margin: 0; font-size: 14px; line-height: 1.5; color: #333; }
     .help-list li { margin-bottom: 12px; display: flex; align-items: center; }
+    
+    /* Bottom Attribute Table Panel */
+    #tablePanel {
+        display: none; position: absolute; bottom: 0; left: 0; width: 100%; height: 35%; 
+        z-index: 95; background: white; box-shadow: 0 -2px 10px rgba(0,0,0,0.3); flex-direction: column;
+    }
+    #featureTableNode { flex-grow: 1; width: 100%; overflow: hidden; }
 
   </style>
 
@@ -208,6 +215,50 @@
     <button id="btnAddData" class="action-btn">Add Layer to Map</button>
   </div>
 
+  <div id="layerToolsPanel" class="panel-base">
+    <div class="panel-header">Custom Layer Tools</div>
+    <div style="font-size:12px; color:#555; margin-bottom:8px;">Modify feature layers you have added to the map.</div>
+    
+    <label style="font-size:12px;font-weight:bold;">1. Select Layer:</label>
+    <select id="selCustomLayer" class="builder-select"><option value="">No custom layers added</option></select>
+    
+    <label style="font-size:12px;font-weight:bold;">2. Filter Data (SQL):</label>
+    <div class="input-group">
+        <select id="selLayerFields" style="width: 65%; padding: 6px; font-size:12px; border:1px solid #ccc; border-radius:4px;"><option value="">Select Field...</option></select>
+        <button id="btnInsertField" class="pick-btn" style="flex-grow:1; font-size:12px; padding: 6px;">Insert Field</button>
+    </div>
+    <div class="input-group">
+        <input type="text" id="inputSqlFilter" class="search-input" placeholder="e.g. POPULATION > 1000" />
+        <button id="btnApplyFilter" class="pick-btn" title="Apply Filter">Apply</button>
+    </div>
+    
+    <label style="font-size:12px;font-weight:bold;">3. Edit Symbology:</label>
+    <div class="input-group">
+        <input type="color" id="inputLayerColor" value="#ff0000" style="height:28px; width:40px; cursor:pointer; padding: 0; border: 1px solid #ccc; border-radius: 4px;" title="Color" />
+        <input type="number" id="inputLineWidth" value="3" min="0.5" max="15" step="0.5" style="width:50px; padding:4px; font-size:12px; border:1px solid #ccc; border-radius:4px;" title="Line Width" />
+        <select id="inputLineStyle" style="flex-grow:1; padding:4px; font-size:12px; border:1px solid #ccc; border-radius:4px;" title="Line Style">
+            <option value="solid">Solid</option>
+            <option value="dash">Dash</option>
+            <option value="dot">Dot</option>
+            <option value="dash-dot">Dash-Dot</option>
+            <option value="long-dash">Long-Dash</option>
+        </select>
+    </div>
+    <button id="btnApplyColor" class="pick-btn" style="width:100%; margin-top:5px; font-weight:bold;">Update Symbology</button>
+    
+    <div id="toolsStatus"></div>
+    <hr style="border: 0; border-top: 1px solid #eee; margin: 15px 0;">
+    <button id="btnOpenTable" class="action-btn" style="background-color:#4CAF50;">Open Attribute Table</button>
+  </div>
+  
+  <div id="tablePanel">
+      <div class="panel-header" style="padding:10px 15px; margin:0; background:#f4f4f4; border-bottom: 2px solid #0079c1;">
+        <span id="tableTitle" style="font-size: 14px;">Attribute Table</span>
+        <span id="btnCloseTable" class="close-icon">&times;</span>
+      </div>
+      <div id="featureTableNode"></div>
+  </div>
+
   <div id="detailsModal">
     <div class="modal-content">
       <div class="panel-header">
@@ -252,6 +303,10 @@
                 <div><b>Add Custom Layer:</b> Load your own Feature or Map services into the viewer by pasting an ArcGIS Server URL or ArcGIS Online Item ID.</div>
             </li>
             <li>
+                <span class="help-icon-box"><span class="esri-icon-palette" style="font-size: 16px;"></span></span>
+                <div><b>Layer Tools:</b> Change the color, line width, and line style, or apply SQL filters to any custom feature layers you have added. You can also open the layer's Attribute Table here.</div>
+            </li>
+            <li>
                 <span class="help-icon-box"><span class="esri-icon-layers" style="font-size: 16px;"></span></span>
                 <div><b>Layers:</b> Toggle the visibility of different map layers on or off, including custom layers you added.</div>
             </li>
@@ -270,6 +325,7 @@
         <h3 style="color:#0079c1;">Map Interaction Tips</h3>
         <ul style="padding-left: 20px;">
             <li style="margin-bottom: 8px;">Click any road on the map to query it and display the Route ID, Street Name, and exact Measure data.</li>
+            <li style="margin-bottom: 8px;">Clicking on a custom uploaded layer will automatically display its Attribute Popup.</li>
             <li style="margin-bottom: 8px;">When viewing route details, click the <b>"Details"</b> button to load full RIL Database attribution.</li>
             <li style="margin-bottom: 8px;">Hit <b>Esc</b> or click anywhere outside this dialog to dismiss it.</li>
         </ul>
@@ -285,8 +341,9 @@
       "esri/geometry/geometryEngine", "esri/Graphic", "esri/widgets/BasemapGallery",
       "esri/widgets/LayerList", "esri/widgets/Expand", "esri/widgets/Home", "esri/widgets/Legend", 
       "esri/widgets/Search", "esri/widgets/Locate", "esri/geometry/Extent", "esri/core/reactiveUtils",
-      "esri/geometry/support/webMercatorUtils", "esri/layers/Layer", "esri/layers/MapImageLayer"
-    ], (Map, MapView, FeatureLayer, GroupLayer, Basemap, TileLayer, VectorTileLayer, Query, query, Point, Polyline, geometryEngine, Graphic, BasemapGallery, LayerList, Expand, Home, Legend, Search, Locate, Extent, reactiveUtils, webMercatorUtils, Layer, MapImageLayer) => {
+      "esri/geometry/support/webMercatorUtils", "esri/layers/Layer", "esri/layers/MapImageLayer",
+      "esri/widgets/FeatureTable"
+    ], (Map, MapView, FeatureLayer, GroupLayer, Basemap, TileLayer, VectorTileLayer, Query, query, Point, Polyline, geometryEngine, Graphic, BasemapGallery, LayerList, Expand, Home, Legend, Search, Locate, Extent, reactiveUtils, webMercatorUtils, Layer, MapImageLayer, FeatureTable) => {
 
       // 1. ENHANCED CONTRAST (Light)
       const enhancedBasemap = new Basemap({
@@ -315,6 +372,10 @@
         center: [-81.6326, 38.3498], zoom: 10,
         popup: { dockEnabled: false, dockOptions: { buttonEnabled: false } } 
       });
+
+      // Global reference for custom layers managed by Layer Tools and Attribute Table
+      window.userCustomLayers = {};
+      let featureTableWidget = null;
 
       // --- CONFIGURATION ---
       const lrsLayerUrl = "https://services2.arcgis.com/xLpB90lOmCXYDAWo/arcgis/rest/services/Dominant_Routes/FeatureServer/20";
@@ -430,18 +491,53 @@
       const addressExpand = new Expand({ view: view, content: addressSearch, expandIconClass: "esri-icon-search", expandTooltip: "Address Search", group: "top-right" });
       const bridgeExpand = new Expand({ view: view, content: document.getElementById("bridgePanel"), expandIconClass: "custom-bridge-icon", expandTooltip: "Find Bridge", group: "top-right" });
       
-      // CUSTOM ADD DATA WIDGET SETUP
+      // CUSTOM ADD DATA & LAYER TOOLS WIDGET SETUP
       const addDataExpand = new Expand({ view: view, content: document.getElementById("addDataPanel"), expandIconClass: "esri-icon-plus-circled", expandTooltip: "Add Custom Layer", group: "top-right" });
+      const layerToolsExpand = new Expand({ view: view, content: document.getElementById("layerToolsPanel"), expandIconClass: "esri-icon-palette", expandTooltip: "Layer Tools", group: "top-right" });
 
       const legendExpand = new Expand({ view: view, content: new Legend({ view: view, layerInfos: [{ layer: legendDummy }, { layer: bridgeLayer }] }), expandTooltip: "Legend", group: "top-right" });
       const basemapSource = [wvImageryBasemap, enhancedBasemap, Basemap.fromId("hybrid"), Basemap.fromId("streets-vector"), Basemap.fromId("streets-night-vector"), Basemap.fromId("streets-navigation-vector"), Basemap.fromId("topo-vector"), Basemap.fromId("gray-vector"), Basemap.fromId("dark-gray-vector"), Basemap.fromId("terrain"), Basemap.fromId("osm")].filter(b => b); 
       const bgExpand = new Expand({ view: view, content: new BasemapGallery({ view: view, source: basemapSource }), expandTooltip: "Basemaps", group: "top-right" });
       const llExpand = new Expand({ view: view, content: new LayerList({ view: view }), expandTooltip: "Layers", group: "top-right" });
       
-      // Array order based on user input + Add Data widget
-      view.ui.add([builderExpand, contextExpand, addressExpand, bridgeExpand, addDataExpand, llExpand, bgExpand, legendExpand], "top-right");
+      // Array order based on user input + Custom Add & Edit Data widgets
+      view.ui.add([builderExpand, contextExpand, addressExpand, bridgeExpand, addDataExpand, layerToolsExpand, llExpand, bgExpand, legendExpand], "top-right");
 
-      // --- ADD DATA LOGIC ---
+      // --- ADD DATA LOGIC WITH POPUP FIX ---
+      function populateFieldsDropdown(layerId) {
+          const selFields = document.getElementById("selLayerFields");
+          selFields.innerHTML = "<option value=''>Select Field...</option>";
+          if (!layerId) return;
+          const lyr = window.userCustomLayers[layerId];
+          if (lyr && lyr.fields) {
+              lyr.fields.forEach(f => {
+                  const opt = document.createElement("option");
+                  opt.value = f.name;
+                  opt.text = `${f.alias || f.name} (${f.type})`;
+                  selFields.add(opt);
+              });
+          }
+      }
+
+      function updateCustomLayerDropdown() {
+          const sel = document.getElementById("selCustomLayer");
+          sel.innerHTML = "";
+          const keys = Object.keys(window.userCustomLayers);
+          if (keys.length === 0) {
+              sel.innerHTML = "<option value=''>No custom layers added</option>";
+              sel.disabled = true;
+              return;
+          }
+          sel.disabled = false;
+          keys.forEach(id => {
+              const lyr = window.userCustomLayers[id];
+              const opt = document.createElement("option");
+              opt.value = id;
+              opt.text = lyr.title || `Layer (${id.substring(0,6)})`;
+              sel.add(opt);
+          });
+      }
+
       document.getElementById("btnAddData").addEventListener("click", async () => {
          const type = document.getElementById("addDataType").value;
          const input = document.getElementById("addDataInput").value.trim();
@@ -465,15 +561,136 @@
             }
 
             await newLayer.load();
+            
+            // GENERATE DEFAULT POPUPS FOR CUSTOM LAYER
+            if (newLayer.type === "feature") {
+                newLayer.popupTemplate = newLayer.createPopupTemplate();
+            }
+
             map.add(newLayer);
             status.innerHTML = `Success! Layer added.`;
             status.style.color = "green";
             document.getElementById("addDataInput").value = ""; 
+            
+            // If it's a feature layer, add it to our Tools list
+            if (newLayer.type === "feature") {
+                window.userCustomLayers[newLayer.id] = newLayer;
+                updateCustomLayerDropdown();
+                document.getElementById("selCustomLayer").value = newLayer.id; // Auto-select new layer
+                populateFieldsDropdown(newLayer.id); // Load its fields
+                
+                document.getElementById("toolsStatus").innerHTML = "New layer available for editing.";
+                document.getElementById("toolsStatus").style.color = "green";
+            } else {
+                status.innerHTML += " (MapImageLayer added. Tools limited to FeatureLayers.)";
+            }
          } catch (err) {
             console.error("Error adding layer:", err);
             status.innerHTML = "Failed to load layer. Check link or permissions.";
             status.style.color = "red";
          }
+      });
+
+      // --- LAYER TOOLS LOGIC ---
+      document.getElementById("selCustomLayer").addEventListener("change", (e) => {
+          populateFieldsDropdown(e.target.value);
+          document.getElementById("inputSqlFilter").value = ""; // Clear filter text on switch
+          
+          // If Table is open, update the table source
+          if (featureTableWidget && document.getElementById("tablePanel").style.display === "flex") {
+              const lyr = window.userCustomLayers[e.target.value];
+              featureTableWidget.layer = lyr;
+              document.getElementById("tableTitle").innerText = "Attribute Table: " + (lyr.title || "Custom Layer");
+          }
+      });
+
+      document.getElementById("btnInsertField").addEventListener("click", () => {
+          const field = document.getElementById("selLayerFields").value;
+          if (field) {
+              const input = document.getElementById("inputSqlFilter");
+              input.value += (input.value ? " " : "") + field + " ";
+              input.focus();
+          }
+      });
+
+      document.getElementById("btnApplyFilter").addEventListener("click", () => {
+          const layerId = document.getElementById("selCustomLayer").value;
+          if(!layerId) return;
+          const lyr = window.userCustomLayers[layerId];
+          const sql = document.getElementById("inputSqlFilter").value.trim();
+          
+          try {
+              lyr.definitionExpression = sql ? sql : null;
+              document.getElementById("toolsStatus").innerHTML = sql ? "Filter applied successfully." : "Filter cleared.";
+              document.getElementById("toolsStatus").style.color = "green";
+          } catch(e) {
+              document.getElementById("toolsStatus").innerHTML = "Error applying filter. Check SQL syntax.";
+              document.getElementById("toolsStatus").style.color = "red";
+          }
+      });
+
+      document.getElementById("btnApplyColor").addEventListener("click", () => {
+          const layerId = document.getElementById("selCustomLayer").value;
+          if(!layerId) return;
+          const lyr = window.userCustomLayers[layerId];
+          
+          const hexColor = document.getElementById("inputLayerColor").value;
+          const width = parseFloat(document.getElementById("inputLineWidth").value) || 3;
+          const style = document.getElementById("inputLineStyle").value || "solid";
+          
+          let sym;
+          if (lyr.geometryType === "point" || lyr.geometryType === "multipoint") {
+              // Scale point marker slightly with the width setting
+              sym = { type: "simple-marker", color: hexColor, size: Math.max(width * 3, 4), outline: { color: "black", width: 1, style: "solid" } };
+          } else if (lyr.geometryType === "polyline") {
+              sym = { type: "simple-line", color: hexColor, width: width, style: style };
+          } else if (lyr.geometryType === "polygon" || lyr.geometryType === "extent") {
+              // Create an rgba version of the hex for a semi-transparent fill
+              const r = parseInt(hexColor.slice(1, 3), 16);
+              const g = parseInt(hexColor.slice(3, 5), 16);
+              const b = parseInt(hexColor.slice(5, 7), 16);
+              
+              sym = { 
+                  type: "simple-fill", 
+                  color: [r, g, b, 0.4], 
+                  outline: { color: hexColor, width: width, style: style } 
+              };
+          } else {
+              document.getElementById("toolsStatus").innerHTML = "Unsupported geometry type.";
+              document.getElementById("toolsStatus").style.color = "red";
+              return;
+          }
+          
+          lyr.renderer = { type: "simple", symbol: sym };
+          document.getElementById("toolsStatus").innerHTML = "Symbology updated.";
+          document.getElementById("toolsStatus").style.color = "green";
+      });
+
+      // --- ATTRIBUTE TABLE LOGIC ---
+      document.getElementById("btnOpenTable").addEventListener("click", () => {
+          const layerId = document.getElementById("selCustomLayer").value;
+          if(!layerId) {
+              alert("No custom feature layer selected.");
+              return;
+          }
+          const lyr = window.userCustomLayers[layerId];
+
+          document.getElementById("tablePanel").style.display = "flex";
+          document.getElementById("tableTitle").innerText = "Attribute Table: " + (lyr.title || "Custom Layer");
+
+          if (featureTableWidget) {
+              featureTableWidget.layer = lyr;
+          } else {
+              featureTableWidget = new FeatureTable({
+                  view: view, // Needed to zoom/highlight on selection
+                  layer: lyr,
+                  container: "featureTableNode"
+              });
+          }
+      });
+
+      document.getElementById("btnCloseTable").addEventListener("click", () => {
+          document.getElementById("tablePanel").style.display = "none";
       });
 
       // --- CRITICAL FIX: FEATURE ITERATOR FOR M-VALUES & INFINITE SNAP ---

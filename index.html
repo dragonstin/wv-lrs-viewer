@@ -3,19 +3,38 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
-  <title>WV DOT LRS Viewer v73 (County Fix)</title>
+  <title>Geometry & Measures</title>
 
   <style>
-    html, body, #viewDiv { padding: 0; margin: 0; height: 100%; width: 100%; font-family: "Avenir Next", "Helvetica Neue", Helvetica, Arial, sans-serif; }
+    /* 1.4.8 Visual Presentation: Line height min 1.5, readable fonts */
+    html, body, #viewDiv { 
+      padding: 0; margin: 0; height: 100%; width: 100%; 
+      font-family: "Avenir Next", "Helvetica Neue", Helvetica, Arial, sans-serif; 
+      line-height: 1.5;
+      color: #111111;
+    }
     
+    /* Global Focus Indicator (2.4.13 Focus Appearance AAA) */
+    *:focus-visible {
+      outline: 3px solid #000000 !important;
+      outline-offset: 2px !important;
+    }
+
+    /* Screen Reader Only Class */
+    .sr-only {
+      position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+      overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+    }
+
     /* PANEL STYLES */
     .panel-base {
-      background-color: rgba(255, 255, 255, 0.96);
+      background-color: rgba(255, 255, 255, 0.98);
       padding: 15px;
       box-shadow: 0 2px 10px rgba(0,0,0,0.3);
       border-radius: 8px;
       overflow-y: auto;
       box-sizing: border-box;
+      border: 1px solid #595959; /* 1.4.11 UI Contrast */
     }
     
     #infoPanel {
@@ -24,73 +43,132 @@
     }
 
     .panel-header {
-      font-size: 16px; font-weight: bold; margin-bottom: 10px;
-      border-bottom: 2px solid #0079c1; padding-bottom: 5px;
+      font-size: 18px; font-weight: bold; margin-bottom: 12px;
+      border-bottom: 2px solid #004772; /* Darker blue for AAA 7:1 contrast */
+      padding-bottom: 5px; color: #000000;
       display: flex; justify-content: space-between; align-items: center;
     }
-    .close-icon { cursor: pointer; font-size: 18px; color: #888; }
-    .close-icon:hover { color: #000; }
 
-    #searchPanel, #builderPanel, #bridgePanel { width: 300px; background: white; }
-
-    .search-input, .builder-select {
-      width: 100%; padding: 8px; margin-bottom: 8px;
-      border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-size: 13px;
+    /* Target Size Enhanced AAA (2.5.5) - Min 44x44px for interaction */
+    .close-icon { 
+      background: transparent; border: none; cursor: pointer; 
+      font-size: 24px; color: #333333; 
+      min-width: 44px; min-height: 44px; 
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 4px;
     }
+    .close-icon:hover, .close-icon:focus { color: #000; background-color: #e6e6e6; }
+
+    #builderPanel, #bridgePanel, #contextPanel { width: 320px; background: white; }
+
+    /* Inputs/Selects - Min 44px height for Target Size AAA */
+    .search-input, .builder-select {
+      width: 100%; padding: 10px; margin-bottom: 10px;
+      border: 1px solid #595959; border-radius: 4px; box-sizing: border-box; 
+      font-size: 14px; min-height: 44px; color: #000000;
+    }
+    .search-input::placeholder { color: #595959; } /* 7:1 Contrast for placeholders */
+    
     .search-row { display: flex; gap: 10px; }
     
-    .action-btn {
-      width: 100%; padding: 10px; background-color: #0079c1; color: white;
-      border: none; border-radius: 4px; cursor: pointer; font-weight: bold;
+    .input-group { display: flex; gap: 5px; align-items: center; margin-bottom: 10px; }
+    .input-group input { margin-bottom: 0; flex-grow: 1; }
+    
+    .pick-btn {
+        padding: 8px 10px; background-color: #e6e6e6; border: 1px solid #595959;
+        border-radius: 4px; cursor: pointer; color: #111; 
+        min-width: 44px; min-height: 44px; /* Target Size AAA */
+        display: flex; align-items: center; justify-content: center;
     }
-    .action-btn:hover { background-color: #005a8f; }
-    .action-btn:disabled { background-color: #ccc; cursor: not-allowed; }
+    .pick-btn:hover { background-color: #cccccc; }
+    .pick-btn.active { background-color: #004772; color: #ffffff; border-color: #002d4a; }
+
+    .action-btn {
+      width: 100%; padding: 10px; background-color: #004772; color: #ffffff;
+      border: 1px solid transparent; border-radius: 4px; cursor: pointer; 
+      font-weight: bold; font-size: 15px; min-height: 44px; /* Target Size AAA */
+    }
+    .action-btn:hover { background-color: #002d4a; }
+    .action-btn:disabled { background-color: #e6e6e6; color: #595959; border-color: #595959; cursor: not-allowed; }
 
     .clear-btn {
-      width: 100%; padding: 8px; margin-top: 15px; background-color: #6c757d; color: white;
-      border: none; border-radius: 4px; cursor: pointer; font-weight: bold;
+      width: 100%; padding: 10px; margin-top: 15px; background-color: #333333; color: #ffffff;
+      border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 15px;
+      min-height: 44px;
     }
-    .clear-btn:hover { background-color: #5a6268; }
+    .clear-btn:hover { background-color: #1a1a1a; }
 
-    /* RESULTS CARDS */
     .route-card {
-      padding: 10px; margin-bottom: 8px;
-      background-color: #f9f9f9; border-left: 4px solid #ccc;
-      transition: background-color 0.2s;
+      padding: 12px; margin-bottom: 10px;
+      background-color: #f2f2f2; border-left: 5px solid #595959;
+      transition: background-color 0.2s; color: #111;
     }
-    .route-card:hover { background-color: #e6f7ff; border-left-color: #0079c1; }
+    .route-card:hover { background-color: #e6f2ff; border-left-color: #004772; }
     
     .bridge-card {
-      padding: 10px; margin-bottom: 8px;
-      background-color: #fff8e1; border-left: 4px solid #ffa000;
-      cursor: pointer; transition: background-color 0.2s;
+      padding: 12px; margin-bottom: 10px;
+      background-color: #fff8e1; border-left: 5px solid #995c00;
+      cursor: pointer; transition: background-color 0.2s; color: #111;
     }
-    .bridge-card:hover { background-color: #ffecb3; }
+    .bridge-card:hover { background-color: #ffecb3; border-left-color: #663d00; }
     
-    .measure-badge { display: inline-block; background: #0079c1; color: white; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; margin-top: 4px; }
-
-    /* API DETAILS MODAL */
-    #detailsModal {
-      display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%;
-      background-color: rgba(0,0,0,0.5);
+    .measure-badge { 
+      display: inline-block; background: #004772; color: #ffffff; 
+      padding: 4px 8px; border-radius: 4px; font-size: 13px; 
+      font-weight: bold; margin-top: 6px; 
     }
+
+    #detailsModal, #helpModal {
+      display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%;
+      background-color: rgba(0,0,0,0.7); /* Darker backdrop */
+    }
+    
     .modal-content {
-      background-color: #fefefe; margin: 5% auto; padding: 20px; border: 1px solid #888;
+      background-color: #ffffff; margin: 5% auto; padding: 20px; border: 1px solid #595959;
       width: 90%; max-width: 700px; max-height: 85%; overflow-y: auto; border-radius: 8px;
     }
-    .modal-head { font-size: 18px; font-weight: bold; border-bottom: 2px solid #0079c1; padding-bottom: 10px; margin-bottom: 15px; color: #333; }
     
-    .modal-list { list-style: none; padding: 0; margin: 0; font-size: 13px; line-height: 1.6; }
-    .modal-list li { padding: 6px 0; border-bottom: 1px solid #eee; display: flex; }
-    .modal-list li b { display: inline-block; width: 50%; color: #444; }
-    .modal-list li span { width: 50%; color: #111; }
+    .modal-head { 
+      font-size: 20px; font-weight: bold; border-bottom: 2px solid #004772; 
+      padding-bottom: 10px; margin-bottom: 15px; color: #000000; 
+    }
+    
+    .modal-list { list-style: none; padding: 0; margin: 0; font-size: 15px; }
+    .modal-list li { padding: 8px 0; border-bottom: 1px solid #e6e6e6; display: flex; flex-wrap: wrap; }
+    .modal-list li b { display: inline-block; width: 50%; color: #222222; min-width: 150px; }
+    .modal-list li span { width: 50%; color: #000000; min-width: 150px; }
 
     .details-btn {
-      margin-top: 8px; padding: 6px 12px; background-color: #0079c1; color: white;
-      border: none; border-radius: 4px; cursor: pointer; font-size: 12px;
+      margin-top: 10px; padding: 8px 16px; background-color: #004772; color: #ffffff;
+      border: none; border-radius: 4px; cursor: pointer; font-size: 14px; min-height: 44px;
+      font-weight: bold;
     }
-    .details-btn:hover { background-color: #005a8f; }
+    .details-btn:hover { background-color: #002d4a; }
 
+    #ctxStatus { font-size: 13px; color: #333333; margin-top: 5px; font-weight: bold; min-height: 1.5em; margin-bottom: 10px; }
+
+    .custom-bridge-icon {
+        background-image: url('images/bridge-svgrepo-com.png');
+        background-size: contain; background-repeat: no-repeat; background-position: center;
+        display: inline-block; width: 24px; height: 24px;
+    }
+    
+    #logoWidget {
+        padding: 8px; background-color: rgba(255,255,255,0.95); border-radius: 4px;
+        border: 1px solid #595959; margin: 5px;
+    }
+    #orgLogo { height: 45px; display: block; }
+    
+    .help-icon-box {
+        display: inline-flex; align-items: center; justify-content: center;
+        width: 36px; height: 36px; background: #e6e6e6; border: 1px solid #595959;
+        border-radius: 4px; margin-right: 12px; color: #000;
+    }
+    .help-list { list-style: none; padding: 0; margin: 0; font-size: 15px; color: #111111; }
+    .help-list li { margin-bottom: 15px; display: flex; align-items: flex-start; }
+
+    /* Esri specific overrides for AAA target size */
+    .esri-widget--button { min-width: 44px !important; min-height: 44px !important; }
   </style>
 
   <link rel="stylesheet" href="https://js.arcgis.com/4.28/esri/themes/light/main.css" />
@@ -99,52 +177,139 @@
 <body>
   <div id="viewDiv"></div>
   
-  <div id="infoPanel" class="panel-base">
+  <div id="logoWidget">
+      <img id="orgLogo" src="images/WVDOT_IT.png" alt="West Virginia Department of Transportation IT Logo" />
+  </div>
+  
+  <div id="infoPanel" class="panel-base" aria-live="polite">
     <div class="panel-header">
-      <span>Route Information</span>
-      <span id="btnCloseInfo" class="close-icon">&times;</span>
+      <h2 style="font-size: 18px; margin: 0;">Route Information</h2>
+      <button id="btnCloseInfo" class="close-icon" aria-label="Close Information Panel">&times;</button>
     </div>
-    <div id="resultsList">
-      <p style="color: #666; font-style: italic;">Click a route on the map or use the Search tool to see details.</p>
+    <div id="resultsList" aria-live="polite" aria-atomic="true">
+      <p style="color: #333333; font-weight: bold;">Click a route on the map or use the Search tool to see details.</p>
     </div>
     <button id="btnClear" class="clear-btn">Clear Selection</button>
   </div>
 
-  <div id="searchPanel" class="panel-base">
-    <div class="panel-header">Find Measure</div>
-    <input type="text" id="inputRouteID" class="search-input" placeholder="Route ID..." />
-    <div class="search-row">
-      <input type="number" id="inputBMP" class="search-input" placeholder="BMP" step="0.01" />
-      <input type="number" id="inputEMP" class="search-input" placeholder="EMP" step="0.01" />
-    </div>
-    <button id="btnSearch" class="action-btn">Go</button>
-  </div>
-
   <div id="bridgePanel" class="panel-base">
-    <div class="panel-header">Bridge Lookup</div>
-    <div style="font-size:12px; color:#555; margin-bottom:5px;">Format: 20-77-103.65 or BARSID (e.g. 20A123)</div>
+    <div class="panel-header"><h2 style="font-size: 18px; margin: 0;">Bridge Lookup</h2></div>
+    <label for="inputBridgeID" style="font-size:14px; color:#111; margin-bottom:8px; display:block; font-weight:bold;">
+      Format: 20-77-103.65 or BARSID (e.g. 20A123)
+    </label>
     <input type="text" id="inputBridgeID" class="search-input" placeholder="Bridge Number or BARSID" />
     <button id="btnFindBridge" class="action-btn">Find Bridge</button>
   </div>
 
+  <div id="contextPanel" class="panel-base">
+    <div class="panel-header"><h2 style="font-size: 18px; margin: 0;">Find Measure</h2></div>
+    <p style="font-size:14px; color:#111; margin-bottom:12px; margin-top:0;">Enter Milepoint (e.g. 1.54), Place (e.g. "Kimball, WV"), or leave blank for full route.</p>
+    
+    <label for="ctxRouteID" style="font-size:14px;font-weight:bold;display:block;margin-bottom:4px;">1. Route ID:</label>
+    <input type="text" id="ctxRouteID" class="search-input" placeholder="e.g. 2430080000000" />
+    
+    <label for="ctxBMPRef" style="font-size:14px;font-weight:bold;display:block;margin-bottom:4px;">2. Start Reference:</label>
+    <div class="input-group">
+        <input type="text" id="ctxBMPRef" class="search-input" placeholder="MP, Place, or Click ->" />
+        <button id="btnPickBMP" class="pick-btn" title="Pick Start on Map" aria-label="Pick start reference on Map"><span class="esri-icon-cursor" aria-hidden="true"></span></button>
+    </div>
+    
+    <label for="ctxEMPRef" style="font-size:14px;font-weight:bold;display:block;margin-bottom:4px;">3. End Reference:</label>
+    <div class="input-group">
+        <input type="text" id="ctxEMPRef" class="search-input" placeholder="MP, Place, or Click ->" />
+        <button id="btnPickEMP" class="pick-btn" title="Pick End on Map" aria-label="Pick end reference on Map"><span class="esri-icon-cursor" aria-hidden="true"></span></button>
+    </div>
+    
+    <div id="ctxStatus" aria-live="polite"></div>
+    <button id="btnCtxLocate" class="action-btn">Calculate & Locate</button>
+  </div>
+
   <div id="builderPanel" class="panel-base">
-    <div class="panel-header">Route Builder</div>
+    <div class="panel-header"><h2 style="font-size: 18px; margin: 0;">Route Builder</h2></div>
+    
+    <label for="selCounty" class="sr-only">Select County</label>
     <select id="selCounty" class="builder-select"><option value="">Select County</option></select>
+    
+    <label for="selSystem" class="sr-only">Select System</label>
     <select id="selSystem" class="builder-select" disabled></select>
+    
+    <label for="selRoute" class="sr-only">Select Route</label>
     <select id="selRoute" class="builder-select" disabled></select>
+    
+    <label for="selSub" class="sr-only">Select Subroute</label>
     <select id="selSub" class="builder-select" disabled></select>
+    
+    <label for="selSupp" class="sr-only">Select Supplement</label>
     <select id="selSupp" class="builder-select" disabled></select>
+    
+    <label for="selDir" class="sr-only">Select Direction</label>
     <select id="selDir" class="builder-select" disabled></select>
+    
     <button id="btnBuild" class="action-btn" disabled>Build & Locate</button>
   </div>
 
-  <div id="detailsModal">
+  <div id="detailsModal" role="dialog" aria-modal="true" aria-labelledby="detailsModalTitle">
     <div class="modal-content">
       <div class="panel-header">
-        <span>RIL Details</span>
-        <span class="close-icon close-icon-modal">&times;</span>
+        <h2 id="detailsModalTitle" style="font-size: 20px; margin: 0;">RIL Details</h2>
+        <button class="close-icon close-icon-modal" aria-label="Close Details Modal">&times;</button>
       </div>
-      <div id="modalDataContent">Loading...</div>
+      <div id="modalDataContent" aria-live="polite">Loading...</div>
+    </div>
+  </div>
+  
+  <div id="helpModal" role="dialog" aria-modal="true" aria-labelledby="helpModalTitle">
+    <div class="modal-content">
+      <div class="panel-header">
+        <h2 id="helpModalTitle" style="font-size: 20px; margin: 0;">Help & Instructions</h2>
+        <button class="close-icon close-icon-help" aria-label="Close Help Modal">&times;</button>
+      </div>
+      <div style="font-size: 15px; color: #111111;">
+        <p>Email <b><a href="mailto:DOTSupport@wv.gov" style="color:#004772; font-weight:bold; text-decoration: underline;">DOTSupport@wv.gov</a></b> with questions or comments.</p>
+        
+        <div style="margin: 20px 0; border-bottom: 1px solid #595959;"></div>
+        
+        <h3 style="margin-top:0; color:#004772;">Widgets & Tools</h3>
+        <ul class="help-list">
+            <li>
+                <span class="help-icon-box" aria-hidden="true"><span style="font-size: 18px;">🔨</span></span>
+                <div><b>Route Builder:</b> Use this tool to piece together a Route ID by selecting County, System, Route, etc., if you do not already know it.</div>
+            </li>
+            <li>
+                <span class="help-icon-box" aria-hidden="true"><span class="esri-icon-polyline" style="font-size: 18px;"></span></span>
+                <div><b>Find Measure:</b> Calculate ranges or specific locations along a route. You can enter Milepoints, GPS coordinates, or City names. Leaving the Start and End references blank will highlight the entire route.</div>
+            </li>
+            <li>
+                <span class="help-icon-box" aria-hidden="true"><span class="esri-icon-search" style="font-size: 18px;"></span></span>
+                <div><b>Address Search:</b> Zoom the map directly to a specific street, address, or city.</div>
+            </li>
+            <li>
+                <span class="help-icon-box" aria-hidden="true"><span class="custom-bridge-icon"></span></span>
+                <div><b>Bridge Lookup:</b> Find bridges by Bridge Number (e.g. 20-77-103.65) or BARSID (e.g. 20A123).</div>
+            </li>
+            <li>
+                <span class="help-icon-box" aria-hidden="true"><span class="esri-icon-layers" style="font-size: 18px;"></span></span>
+                <div><b>Layers:</b> Toggle the visibility of different map layers on or off.</div>
+            </li>
+            <li>
+                <span class="help-icon-box" aria-hidden="true"><span class="esri-icon-basemap" style="font-size: 18px;"></span></span>
+                <div><b>Basemaps:</b> Switch the background map between Aerial Imagery, Topographic, and Vector street views.</div>
+            </li>
+            <li>
+                <span class="help-icon-box" aria-hidden="true"><span class="esri-icon-legend" style="font-size: 18px;"></span></span>
+                <div><b>Legend:</b> View the symbology logic for the routes and bridges on the map.</div>
+            </li>
+        </ul>
+
+        <div style="margin: 20px 0; border-bottom: 1px solid #595959;"></div>
+
+        <h3 style="color:#004772;">Map Interaction Tips</h3>
+        <ul style="padding-left: 20px;">
+            <li style="margin-bottom: 10px;">Click any road on the map to query it and display the Route ID, Street Name, and exact Measure data.</li>
+            <li style="margin-bottom: 10px;">When viewing route details, click the <b>"Details"</b> button to load full RIL Database attribution.</li>
+            <li style="margin-bottom: 10px;">Hit <b>Esc</b> or click anywhere outside this dialog to dismiss it.</li>
+        </ul>
+      </div>
     </div>
   </div>
 
@@ -155,279 +320,309 @@
       "esri/rest/support/Query", "esri/rest/query", "esri/geometry/Point", "esri/geometry/Polyline",
       "esri/geometry/geometryEngine", "esri/Graphic", "esri/widgets/BasemapGallery",
       "esri/widgets/LayerList", "esri/widgets/Expand", "esri/widgets/Home", "esri/widgets/Legend", 
-      "esri/widgets/Search", "esri/geometry/Extent"
-    ], (Map, MapView, FeatureLayer, GroupLayer, Basemap, TileLayer, VectorTileLayer, Query, query, Point, Polyline, geometryEngine, Graphic, BasemapGallery, LayerList, Expand, Home, Legend, Search, Extent) => {
+      "esri/widgets/Search", "esri/widgets/Locate", "esri/geometry/Extent", "esri/core/reactiveUtils",
+      "esri/geometry/support/webMercatorUtils"
+    ], (Map, MapView, FeatureLayer, GroupLayer, Basemap, TileLayer, VectorTileLayer, Query, query, Point, Polyline, geometryEngine, Graphic, BasemapGallery, LayerList, Expand, Home, Legend, Search, Locate, Extent, reactiveUtils, webMercatorUtils) => {
 
-      // 1. ENHANCED CONTRAST (Light)
       const enhancedBasemap = new Basemap({
         portalItem: { id: "084291b0ecad4588b8c8853898d72445" }, 
-        title: "Enhanced Contrast Light",
-        thumbnailUrl: "https://www.arcgis.com/sharing/rest/content/items/084291b0ecad4588b8c8853898d72445/info/thumbnail/thumbnail1660757236538.png"
+        title: "Enhanced Contrast Light"
       });
 
-      // 2. WV IMAGERY (Custom)
       const wvImageryLayer = new TileLayer({
         url: "https://services.wvgis.wvu.edu/arcgis/rest/services/Imagery_BaseMaps_EarthCover/wv_imagery_WVGISTC_leaf_off_mosaic/MapServer"
       });
+      const wvImageryBasemap = new Basemap({ baseLayers: [wvImageryLayer], title: "WV Imagery (Leaf-Off)", id: "wv-imagery" });
 
-      const wvImageryBasemap = new Basemap({
-        baseLayers: [wvImageryLayer],
-        title: "WV Imagery (Leaf-Off)",
-        id: "wv-imagery",
-        thumbnailUrl: "https://services.wvgis.wvu.edu/arcgis/rest/services/Imagery_BaseMaps_EarthCover/wv_imagery_WVGISTC_leaf_off_mosaic/MapServer/info/thumbnail"
-      });
-
-      // 3. INIT MAP
       const map = new Map({ basemap: enhancedBasemap });
+      const view = new MapView({ container: "viewDiv", map: map, center: [-81.6326, 38.3498], zoom: 10, popup: { dockEnabled: false, dockOptions: { buttonEnabled: false } } });
 
-      const view = new MapView({
-        container: "viewDiv", map: map,
-        center: [-81.6326, 38.3498], zoom: 10,
-        popup: { dockEnabled: false, dockOptions: { buttonEnabled: false } } 
-      });
-
-      // --- CONFIGURATION ---
       const lrsLayerUrl = "https://services2.arcgis.com/xLpB90lOmCXYDAWo/arcgis/rest/services/Dominant_Routes/FeatureServer/20";
       const bridgeLayerUrl = "https://gis.transportation.wv.gov/arcgis/rest/services/Roads_And_Highways/Publication_LRS/FeatureServer/113";
       const streetLayerUrl = "https://gis.transportation.wv.gov/arcgis/rest/services/Roads_And_Highways/Publication_LRS/FeatureServer/118";
       const networkLayerUrl = "https://gis.transportation.wv.gov/arcgis/rest/services/Roads_And_Highways/Publication_LRS/MapServer/89";
+      const boundariesLayerUrl = "https://gis.transportation.wv.gov/arcgis/rest/services/Boundaries/FeatureServer/15";
 
       const rillrsRouteUrl = "https://gis.transportation.wv.gov/api/rillrs/route/"; 
       const rillrsDetailsUrl = "https://gis.transportation.wv.gov/api/rillrs/details/";
 
       const systemMap = { "1": "Interstate", "2": "US Highway", "3": "WV Route", "4": "Co. Route", "6": "State Park/Forest", "7": "FANS", "8": "HARP", "0": "MNS" };
-      
-      // FIX: CORRECTED WV COUNTY CODES (McDowell=24, Marion=25, Marshall=26, Mason=27)
-      const countyMap = { 
-        "01": "Barbour", "02": "Berkeley", "03": "Boone", "04": "Braxton", "05": "Brooke", 
-        "06": "Cabell", "07": "Calhoun", "08": "Clay", "09": "Doddridge", "10": "Fayette", 
-        "11": "Gilmer", "12": "Grant", "13": "Greenbrier", "14": "Hampshire", "15": "Hancock", 
-        "16": "Hardy", "17": "Harrison", "18": "Jackson", "19": "Jefferson", "20": "Kanawha", 
-        "21": "Lewis", "22": "Lincoln", "23": "Logan", 
-        "24": "McDowell", "25": "Marion", "26": "Marshall", "27": "Mason", 
-        "28": "Mercer", "29": "Mineral", "30": "Mingo", "31": "Monongalia", "32": "Monroe", 
-        "33": "Morgan", "34": "Nicholas", "35": "Ohio", "36": "Pendleton", "37": "Pleasants", 
-        "38": "Pocahontas", "39": "Preston", "40": "Putnam", "41": "Raleigh", "42": "Randolph", 
-        "43": "Ritchie", "44": "Roane", "45": "Summers", "46": "Taylor", "47": "Tucker", 
-        "48": "Tyler", "49": "Upshur", "50": "Wayne", "51": "Webster", "52": "Wetzel", 
-        "53": "Wirt", "54": "Wood", "55": "Wyoming" 
-      };
+      const countyMap = { "01": "Barbour", "02": "Berkeley", "03": "Boone", "04": "Braxton", "05": "Brooke", "06": "Cabell", "07": "Calhoun", "08": "Clay", "09": "Doddridge", "10": "Fayette", "11": "Gilmer", "12": "Grant", "13": "Greenbrier", "14": "Hampshire", "15": "Hancock", "16": "Hardy", "17": "Harrison", "18": "Jackson", "19": "Jefferson", "20": "Kanawha", "21": "Lewis", "22": "Lincoln", "23": "Logan", "24": "McDowell", "25": "Marion", "26": "Marshall", "27": "Mason", "28": "Mercer", "29": "Mineral", "30": "Mingo", "31": "Monongalia", "32": "Monroe", "33": "Morgan", "34": "Nicholas", "35": "Ohio", "36": "Pendleton", "37": "Pleasants", "38": "Pocahontas", "39": "Preston", "40": "Putnam", "41": "Raleigh", "42": "Randolph", "43": "Ritchie", "44": "Roane", "45": "Summers", "46": "Taylor", "47": "Tucker", "48": "Tyler", "49": "Upshur", "50": "Wayne", "51": "Webster", "52": "Wetzel", "53": "Wirt", "54": "Wood", "55": "Wyoming" };
 
       const routeRenderer = {
         type: "unique-value",
         valueExpression: `var sys = Mid($feature.ROUTEID, 2, 1); var supp = Mid($feature.ROUTEID, 9, 2); if (supp == '24') return sys + '_P'; return sys;`,
         uniqueValueInfos: [
-          { value: "1", symbol: { type: "simple-line", color: [0, 112, 255, 1], width: 3 }, label: "Interstate" },
-          { value: "2", symbol: { type: "simple-line", color: [255, 0, 0, 1], width: 2.5 }, label: "US Highway" },
+          { value: "1", symbol: { type: "simple-line", color: [0, 80, 200, 1], width: 3 }, label: "Interstate" },
+          { value: "2", symbol: { type: "simple-line", color: [200, 0, 0, 1], width: 2.5 }, label: "US Highway" },
           { value: "3", symbol: { type: "simple-line", color: [0, 0, 0, 1], width: 2 }, label: "WV Route" },
-          { value: "4", symbol: { type: "simple-line", color: [170, 170, 170, 1], width: 1.5 }, label: "County Route" },
+          { value: "4", symbol: { type: "simple-line", color: [100, 100, 100, 1], width: 1.5 }, label: "County Route" },
           { value: "6", symbol: { type: "simple-line", color: [115, 38, 0, 1], width: 1.5 }, label: "SP/SF Route" },
-          { value: "7", symbol: { type: "simple-line", color: [215, 176, 158, 1], width: 1.5 }, label: "FANS" },
+          { value: "7", symbol: { type: "simple-line", color: [150, 100, 80, 1], width: 1.5 }, label: "FANS" },
           { value: "8", symbol: { type: "simple-line", color: [0, 92, 230, 1], width: 1.5 }, label: "HARP" },
-          { value: "0", symbol: { type: "simple-line", color: [204, 204, 204, 1], width: 1 }, label: "MNS" },
-          { value: "1_P", symbol: { type: "simple-line", color: [0, 112, 255, 1], width: 3, style: "dash" }, label: "Prop. Interstate" },
-          { value: "2_P", symbol: { type: "simple-line", color: [255, 0, 0, 1], width: 2.5, style: "dash" }, label: "Prop. US" },
-          { value: "3_P", symbol: { type: "simple-line", color: [0, 0, 0, 1], width: 2, style: "dash" }, label: "Prop. WV" },
-          { value: "4_P", symbol: { type: "simple-line", color: [170, 170, 170, 1], width: 1.5, style: "dash" }, label: "Prop. County" },
-          { value: "0_P", symbol: { type: "simple-line", color: [204, 204, 204, 1], width: 1, style: "dash" }, label: "Prop. MNS" }
+          { value: "0", symbol: { type: "simple-line", color: [120, 120, 120, 1], width: 1 }, label: "MNS" }
         ],
-        defaultSymbol: { type: "simple-line", color: [150, 150, 150, 0.5], width: 1 }
+        defaultSymbol: { type: "simple-line", color: [100, 100, 100, 0.8], width: 1 }
       };
 
-      const bridgeLabelClass = {
-        symbol: {
-          type: "text",
-          color: "darkred",
-          haloColor: "white",
-          haloSize: "1.5px",
-          font: { size: 10, weight: "bold", family: "sans-serif" },
-          yoffset: 12
-        },
-        labelPlacement: "above-center",
-        labelExpressionInfo: { expression: "$feature.BARSid" },
-        minScale: 10000 
-      };
+      const bridgeLabelClass = { symbol: { type: "text", color: "#660000", haloColor: "white", haloSize: "1.5px", font: { size: 10, weight: "bold", family: "sans-serif" }, yoffset: 12 }, labelPlacement: "above-center", labelExpressionInfo: { expression: "$feature.BARSid" }, minScale: 10000 };
 
-      // --- LAYERS ---
       const layerBottom = new FeatureLayer({ url: lrsLayerUrl, renderer: routeRenderer, minScale: 100000, title: "Local Routes", legendEnabled: false, definitionExpression: "ROUTEID LIKE '__4%' OR ROUTEID LIKE '__0%' OR ROUTEID LIKE '__6%' OR ROUTEID LIKE '__7%' OR ROUTEID LIKE '__8%'" });
       const layerMiddle = new FeatureLayer({ url: lrsLayerUrl, renderer: routeRenderer, minScale: 2000000, title: "State Routes", legendEnabled: false, definitionExpression: "ROUTEID LIKE '__2%' OR ROUTEID LIKE '__3%'" });
       const layerTop = new FeatureLayer({ url: lrsLayerUrl, renderer: routeRenderer, minScale: 0, title: "Interstates", legendEnabled: false, definitionExpression: "ROUTEID LIKE '__1%'" });
       const legendDummy = new FeatureLayer({ url: lrsLayerUrl, title: "West Virginia Routes", renderer: routeRenderer, definitionExpression: "1=0", listMode: "hide", legendEnabled: true });
       const streetLayer = new FeatureLayer({ url: streetLayerUrl, outFields: ["STREET_NAME"], visible: false, listMode: "hide", definitionExpression: "RH_TO_DATE IS NULL" });
-      const bridgeLayer = new FeatureLayer({ url: bridgeLayerUrl, title: "Bridges", outFields: ["*"], definitionExpression: "RH_TO_DATE IS NULL", minScale: 50000, renderer: { type: "simple", symbol: { type: "simple-marker", style: "square", color: "orange", outline: { color: "black", width: 1 }, size: 7 } }, labelingInfo: [bridgeLabelClass] });
+      const bridgeLayer = new FeatureLayer({ url: bridgeLayerUrl, title: "Bridges", outFields: ["*"], definitionExpression: "RH_TO_DATE IS NULL", minScale: 50000, renderer: { type: "simple", symbol: { type: "simple-marker", style: "square", color: "#cc5200", outline: { color: "black", width: 1 }, size: 8 } }, labelingInfo: [bridgeLabelClass] });
 
       map.addMany([layerBottom, layerMiddle, layerTop, legendDummy, streetLayer, bridgeLayer]);
 
-      // --- UI SETUP ---
       view.ui.add(new Home({ view: view }), "top-left");
-      
-      const bridgeExpand = new Expand({ view: view, content: document.getElementById("bridgePanel"), expandIcon: "magnifying-glass", tooltip: "Find Bridge", group: "top-right" });
-      const builderExpand = new Expand({ view: view, content: document.getElementById("builderPanel"), expandIcon: "hammer", tooltip: "Route Builder", group: "top-right" });
-      const searchExpand = new Expand({ view: view, content: document.getElementById("searchPanel"), expandIcon: "search", tooltip: "Find Measure", group: "top-right" });
-      
-      const wvExtent = new Extent({
-        xmin: -9199945, ymin: 4467222, xmax: -8651646, ymax: 4959210,
-        spatialReference: { wkid: 3857 }
-      });
+      const locateWidget = new Locate({ view: view });
+      view.ui.add(locateWidget, "top-left");
+      view.ui.add("logoWidget", "bottom-left");
 
-      const addressSearch = new Search({ 
-        view: view, 
-        includeDefaultSources: false, 
-        sources: [{
-            url: "https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer",
-            singleLineFieldName: "SingleLine",
-            name: "WV Address Search",
-            placeholder: "Search West Virginia Address",
-            countryCode: "US",
-            filter: {
-                geometry: wvExtent 
-            }
-        }]
-      });
-      const addressExpand = new Expand({ view: view, content: addressSearch, expandIcon: "map-pin", tooltip: "Address Search", group: "top-right" });
+      const helpBtn = document.createElement("button");
+      helpBtn.className = "esri-widget--button esri-widget esri-interactive";
+      helpBtn.title = "Help & Information";
+      helpBtn.setAttribute("aria-label", "Open Help & Information Modal");
+      helpBtn.innerHTML = "<span class='esri-icon-question' aria-hidden='true'></span>";
+      helpBtn.addEventListener("click", () => { document.getElementById("helpModal").style.display = "block"; document.querySelector('.close-icon-help').focus(); });
+      view.ui.add(helpBtn, "top-left");
 
-      const legendExpand = new Expand({ view: view, content: new Legend({ view: view, layerInfos: [{ layer: legendDummy }, { layer: bridgeLayer }] }), tooltip: "Legend", group: "top-right" });
-      const basemapSource = [wvImageryBasemap, enhancedBasemap, Basemap.fromId("hybrid"), Basemap.fromId("streets-vector"), Basemap.fromId("streets-night-vector"), Basemap.fromId("streets-navigation-vector"), Basemap.fromId("topo-vector"), Basemap.fromId("gray-vector"), Basemap.fromId("dark-gray-vector"), Basemap.fromId("terrain"), Basemap.fromId("osm")].filter(b => b); 
-      const bgExpand = new Expand({ view: view, content: new BasemapGallery({ view: view, source: basemapSource }), tooltip: "Basemaps", group: "top-right" });
-      const llExpand = new Expand({ view: view, content: new LayerList({ view: view }), tooltip: "Layers", group: "top-right" });
-      
-      view.ui.add([bridgeExpand, builderExpand, searchExpand, addressExpand, legendExpand, bgExpand, llExpand], "top-right");
+      const bridgeExpand = new Expand({ view: view, content: document.getElementById("bridgePanel"), expandIconClass: "custom-bridge-icon", expandTooltip: "Find Bridge", group: "top-right" });
+      const builderExpand = new Expand({ view: view, content: document.getElementById("builderPanel"), expandIcon: "hammer", expandTooltip: "Route Builder", group: "top-right" });
+      const contextExpand = new Expand({ view: view, content: document.getElementById("contextPanel"), expandIconClass: "esri-icon-polyline", expandTooltip: "Find Measure", group: "top-right" });
 
-      // --- HELPERS (Measures & Geometry) ---
-      function getMeasureOnLine(g, p) { let bestD=Infinity, bestM=null, bestP=null; g.paths.forEach(pth => { for(let i=0; i<pth.length-1; i++) { const A=pth[i], B=pth[i+1], mA=A[A.length-1], mB=B[B.length-1]; if(mA===undefined) continue; const seg = { type:"polyline", paths:[[[A[0],A[1]],[B[0],B[1]]]], spatialReference:g.spatialReference }; const n = geometryEngine.nearestCoordinate(seg, p); if(n.distance < bestD) { bestD = n.distance; bestP = n.coordinate; const full = geometryEngine.distance(new Point({x:A[0],y:A[1],spatialReference:g.spatialReference}), new Point({x:B[0],y:B[1],spatialReference:g.spatialReference})); const part = geometryEngine.distance(new Point({x:A[0],y:A[1],spatialReference:g.spatialReference}), n.coordinate); const r = (full===0)?0:part/full; bestM = mA + (mB-mA)*r; } }}); return {m:bestM, distance:bestD, snapPoint:bestP}; }
+      const wvExtent = new Extent({ xmin: -9199945, ymin: 4467222, xmax: -8651646, ymax: 4959210, spatialReference: { wkid: 3857 } });
+      const addressSearch = new Search({ view: view, popupEnabled: false, includeDefaultSources: false, sources: [{ url: "https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer", singleLineFieldName: "SingleLine", name: "WV Address Search", placeholder: "Search West Virginia Address", countryCode: "US", filter: { geometry: wvExtent } }] });
+      const addressExpand = new Expand({ view: view, content: addressSearch, expandIconClass: "esri-icon-search", expandTooltip: "Address Search", group: "top-right" });
+
+      const legendExpand = new Expand({ view: view, content: new Legend({ view: view, layerInfos: [{ layer: legendDummy }, { layer: bridgeLayer }] }), expandTooltip: "Legend", group: "top-right" });
+      const basemapSource = [wvImageryBasemap, enhancedBasemap, Basemap.fromId("hybrid"), Basemap.fromId("streets-vector"), Basemap.fromId("topo-vector"), Basemap.fromId("gray-vector"), Basemap.fromId("dark-gray-vector")]; 
+      const bgExpand = new Expand({ view: view, content: new BasemapGallery({ view: view, source: basemapSource }), expandTooltip: "Basemaps", group: "top-right" });
+      const llExpand = new Expand({ view: view, content: new LayerList({ view: view }), expandTooltip: "Layers", group: "top-right" });
       
-      function getMeasureBounds(g) { let min=Infinity, max=-Infinity, start=null, end=null; g.paths.forEach(p=>p.forEach(pt=>{ const m=pt[pt.length-1]; if(m!==undefined){ if(m<min){min=m; start=new Point({x:pt[0],y:pt[1],spatialReference:g.spatialReference});} if(m>max){max=m; end=new Point({x:pt[0],y:pt[1],spatialReference:g.spatialReference});} } })); return {minM:min, maxM:max, startPoint:start, endPoint:end}; }
+      view.ui.add([builderExpand, contextExpand, addressExpand, bridgeExpand, llExpand, bgExpand, legendExpand], "top-right");
+
+      function getMeasureOnFeatureArray(features, p) { 
+        let bestD = Infinity, bestM = null, bestP = null;
+        features.forEach(feat => {
+            const g = feat.geometry; if (!g || !g.paths) return;
+            g.paths.forEach(pth => {
+                if (pth.length < 2) return; 
+                for (let i = 0; i < pth.length - 1; i++) {
+                    const A = pth[i]; const B = pth[i + 1];
+                    if (!A || !B || A.length < 2 || B.length < 2) continue; if (A[0] === B[0] && A[1] === B[1]) continue;
+                    const p1 = new Point({x:A[0], y:A[1], spatialReference: g.spatialReference});
+                    const p2 = new Point({x:B[0], y:B[1], spatialReference: g.spatialReference});
+                    const seg = new Polyline({ paths: [[[A[0], A[1]], [B[0], B[1]]]], spatialReference: g.spatialReference });
+                    try {
+                        const n = geometryEngine.nearestCoordinate(seg, p);
+                        if (n.distance < bestD) {
+                            bestD = n.distance; bestP = n.coordinate;
+                            const mA = A[A.length - 1]; const mB = B[B.length - 1];
+                            if (typeof mA === 'number' && typeof mB === 'number') {
+                                 const full = geometryEngine.distance(p1, p2); const part = geometryEngine.distance(p1, n.coordinate);
+                                 const r = (full === 0) ? 0 : part / full; bestM = mA + (mB - mA) * r;
+                            }
+                        }
+                    } catch (err) { } 
+                }
+            });
+        });
+        if(bestM === null) return null; return { m: bestM, distance: bestD, snapPoint: bestP };
+      }
+      
+      function getMeasureBounds(g) { 
+        let min=Infinity, max=-Infinity; 
+        if (g && g.paths) { g.paths.forEach(p=>p.forEach(pt=>{ let m = null; if(pt.length === 3) m = pt[2]; if(pt.length === 4) m = pt[3]; if(typeof m === 'number'){ if(m<min) min=m; if(m>max) max=m; } })); }
+        if(min === Infinity) min = 0; if(max === -Infinity) max = 0; if (Math.abs(min) < 1e-6) min = 0;
+        return {minM:min, maxM:max}; 
+      }
       
       function getPointAtMeasure(g, t) { 
-        const eps = 0.0011; 
-        for(const p of g.paths){ 
-          for(let i=0; i<p.length-1; i++){ 
-            const A=p[i], B=p[i+1], mA=A[A.length-1], mB=B[B.length-1]; 
-            if(mA===undefined) continue; 
+        const eps = 0.0011; if(!g.paths) return null;
+        for(const p of g.paths){ for(let i=0; i<p.length-1; i++){ 
+            const A=p[i], B=p[i+1]; let mA = A[A.length-1], mB = B[B.length-1];
+            if (typeof mA !== 'number' || typeof mB !== 'number') continue;
             const min=Math.min(mA,mB), max=Math.max(mA,mB); 
-            if(t >= min - eps && t <= max + eps){ 
-              const ct = Math.max(min, Math.min(t, max)); 
-              const r=(mB-mA===0)?0:(ct-mA)/(mB-mA); 
-              return new Point({x:A[0]+(B[0]-A[0])*r, y:A[1]+(B[1]-A[1])*r, spatialReference:g.spatialReference}); 
-            } 
-          } 
-        } 
-        return null; 
+            if(t >= min - eps && t <= max + eps){ const ct = Math.max(min, Math.min(t, max)); const r=(mB-mA===0)?0:(ct-mA)/(mB-mA); return new Point({x:A[0]+(B[0]-A[0])*r, y:A[1]+(B[1]-A[1])*r, spatialReference:g.spatialReference}); } 
+        } } return null; 
       }
       
       function sliceRouteByMeasure(g, s, e) { 
-        const minT=Math.min(s,e), maxT=Math.max(s,e), paths=[]; 
-        const eps = 0.0011; 
+        const minT=Math.min(s,e), maxT=Math.max(s,e), paths=[]; const eps = 0.0011; if(!g.paths) return null;
         g.paths.forEach(p=>{ 
           let pts=[]; 
           for(let i=0; i<p.length-1; i++){ 
-            const A=p[i], B=p[i+1], mA=A[A.length-1], mB=B[B.length-1]; 
-            if(mA===undefined) continue; 
+            const A=p[i], B=p[i+1]; let mA = A[A.length-1], mB = B[B.length-1];
+            if(typeof mA !== 'number') continue;
             const segMin=Math.min(mA,mB), segMax=Math.max(mA,mB); 
             if(maxT >= segMin - eps && minT <= segMax + eps){ 
               const r=(mB-mA===0)?0:1/(mB-mA); 
-              let p1=A; 
-              if(minT > segMin + eps) { 
-                const ct = Math.max(segMin, Math.min(minT, segMax));
-                p1=[A[0]+(B[0]-A[0])*(ct-mA)*r, A[1]+(B[1]-A[1])*(ct-mA)*r]; 
-              } 
-              let p2=B; 
-              if(maxT < segMax - eps) { 
-                const ct = Math.max(segMin, Math.min(maxT, segMax));
-                p2=[A[0]+(B[0]-A[0])*(ct-mA)*r, A[1]+(B[1]-A[1])*(ct-mA)*r]; 
-              } 
-              if(pts.length===0) pts.push(p1); 
-              pts.push(p2); 
+              let p1=A; if(minT > segMin + eps) { const ct = Math.max(segMin, Math.min(minT, segMax)); p1=[A[0]+(B[0]-A[0])*(ct-mA)*r, A[1]+(B[1]-A[1])*(ct-mA)*r]; } 
+              let p2=B; if(maxT < segMax - eps) { const ct = Math.max(segMin, Math.min(maxT, segMax)); p2=[A[0]+(B[0]-A[0])*(ct-mA)*r, A[1]+(B[1]-A[1])*(ct-mA)*r]; } 
+              if(pts.length===0) pts.push(p1); pts.push(p2); 
             } 
-          } 
-          if(pts.length>0) paths.push(pts); 
-        }); 
-        return (paths.length>0)?new Polyline({paths:paths, spatialReference:g.spatialReference}):null; 
+          } if(pts.length>0) paths.push(pts); 
+        }); return (paths.length>0)?new Polyline({paths:paths, spatialReference:g.spatialReference}):null; 
       }
       
-      function createLabel(pt, txt) { return new Graphic({ geometry:pt, symbol: { type:"text", color:"black", haloColor:"white", haloSize:1, text:txt, yoffset:10, font:{size:10, weight:"bold"} } }); }
+      function createLabel(pt, txt) { return new Graphic({ geometry:pt, symbol: { type:"text", color:"#660000", haloColor:"white", haloSize:"1.5px", text:txt, yoffset:10, font:{size:10, weight:"bold", family:"sans-serif"} } }); }
       function parseRouteInfo(id) { if (!id || id.length < 7) return { number: "?", system: "Unknown" }; let numStr = parseInt(id.substring(3,7)).toString(); const sub = parseInt(id.substring(7,9)); if (sub > 0) numStr += "/" + sub; const sysCode = id.substring(2,3); const supp = id.substring(9,11); let sysName = systemMap[sysCode] || "System " + sysCode; if (supp === '24') sysName = "Proposed " + sysName; return { number: numStr, system: sysName }; }
 
-      window.highlightRoute = (idx) => { view.graphics.removeAll(); if(window.currentData && window.currentData[idx]) { const d = window.currentData[idx]; view.graphics.add(new Graphic({ geometry: d.graphic.geometry, symbol: { type:"simple-line", color:[0,255,255,0.8], width:4 } })); if(window.clickLoc && d.snap) { view.graphics.add(new Graphic({ geometry: new Polyline({paths:[[[window.clickLoc.x, window.clickLoc.y], [d.snap.x, d.snap.y]]], spatialReference:view.spatialReference}), symbol:{type:"simple-line", color:[50,50,50], style:"dash"} })); view.graphics.add(new Graphic({ geometry: d.snap, symbol: { type:"simple-marker", color:[0,255,255], outline:{color:"black"}, size:6 } })); } } };
+      window.highlightRoute = (idx) => { view.graphics.removeAll(); if(window.currentData && window.currentData[idx]) { const d = window.currentData[idx]; view.graphics.add(new Graphic({ geometry: d.graphic.geometry, symbol: { type:"simple-line", color:[0,100,200,1], width:5 } })); if(window.clickLoc && d.snap) { view.graphics.add(new Graphic({ geometry: new Polyline({paths:[[[window.clickLoc.x, window.clickLoc.y], [d.snap.x, d.snap.y]]], spatialReference:view.spatialReference}), symbol:{type:"simple-line", color:[50,50,50], style:"dash"} })); view.graphics.add(new Graphic({ geometry: d.snap, symbol: { type:"simple-marker", color:[0,100,200,1], outline:{color:"black"}, size:8 } })); } } };
       window.clearHighlight = () => { view.graphics.removeAll(); };
       window.zoomToBridge = (oid) => { if (window.currentBridgeResults) { const b = window.currentBridgeResults.find(f => f.attributes.OBJECTID === oid); if (b) view.goTo({ target: b.geometry, zoom: 18 }); } };
+      window.highlightBridge = (idx) => { window.clearHighlightBridge(); if(window.currentBridgeResults && window.currentBridgeResults[idx]) { const b = window.currentBridgeResults[idx]; const h = new Graphic({ geometry: b.geometry, symbol: { type: "simple-marker", style: "diamond", color: [0, 100, 200, 0.9], size: 18, outline: { width: 2, color: "black" } } }); h.isBridgeHighlight = true; view.graphics.add(h); } };
+      window.clearHighlightBridge = () => { const highlights = view.graphics.filter(g => g.isBridgeHighlight); view.graphics.removeMany(highlights); };
 
-      // --- BRIDGE HIGHLIGHT HELPERS ---
-      window.highlightBridge = (idx) => {
-         window.clearHighlightBridge();
-         if(window.currentBridgeResults && window.currentBridgeResults[idx]) {
-            const b = window.currentBridgeResults[idx];
-            const h = new Graphic({ 
-                geometry: b.geometry, 
-                symbol: { type: "simple-marker", style: "diamond", color: [0, 255, 255, 0.8], size: 18, outline: { width: 2, color: "black" } } 
-            });
-            h.isBridgeHighlight = true;
-            view.graphics.add(h);
+      async function resolveLocation(input) {
+         const coordRegex = /^-?\d+(\.\d+)?\s*,\s*-?\d+(\.\d+)?$/;
+         if (coordRegex.test(input.trim())) {
+             const parts = input.split(",");
+             return webMercatorUtils.geographicToWebMercator(new Point({ latitude: parseFloat(parts[0]), longitude: parseFloat(parts[1]), spatialReference: { wkid: 4326 } })); 
+         } 
+         let cleanName = input.split(',')[0].trim();
+         const bQuery = new Query({ where: `UPPER(NAME) = '${cleanName.toUpperCase()}' OR UPPER(NAME) LIKE '${cleanName.toUpperCase()}%' OR UPPER(NAME) LIKE '%${cleanName.toUpperCase()}%'`, returnGeometry: true, outFields: ["NAME"] });
+         try {
+             const boundaryResults = await query.executeQueryJSON(boundariesLayerUrl, bQuery);
+             if (boundaryResults.features.length > 0) {
+                 let geom = boundaryResults.features[0].geometry;
+                 if (geom.type === "polygon" || geom.type === "extent") geom = geom.extent.center;
+                 if (geom.spatialReference.wkid !== view.spatialReference.wkid && geom.spatialReference.wkid === 4326) geom = webMercatorUtils.geographicToWebMercator(geom);
+                 return geom; 
+             }
+         } catch(e) {}
+         const results = await addressSearch.search(input);
+         if (results && results.numResults > 0 && results.results[0].results.length > 0) {
+             let geom = results.results[0].results[0].feature.geometry;
+             if (geom.type === "polygon" || geom.type === "extent") geom = geom.extent.center; 
+             if (geom.spatialReference.wkid !== view.spatialReference.wkid && geom.spatialReference.wkid === 4326) geom = webMercatorUtils.geographicToWebMercator(geom);
+             return geom;
          }
-      };
-      window.clearHighlightBridge = () => { 
-         const highlights = view.graphics.filter(g => g.isBridgeHighlight);
-         view.graphics.removeMany(highlights);
-      };
+         return null;
+      }
 
-      // --- API FETCH FUNCTION (EXACT G2M INTEGRATION) ---
+      let pickingTarget = null;
+      function togglePickMode(target) {
+          if (pickingTarget === target) { pickingTarget = null; document.getElementById("viewDiv").style.cursor = "default"; document.querySelectorAll(".pick-btn").forEach(b => b.classList.remove("active"));
+          } else { pickingTarget = target; document.getElementById("viewDiv").style.cursor = "crosshair"; document.querySelectorAll(".pick-btn").forEach(b => b.classList.remove("active")); document.getElementById(target === 'BMP' ? 'btnPickBMP' : 'btnPickEMP').classList.add("active"); }
+      }
+      document.getElementById("btnPickBMP").addEventListener("click", () => togglePickMode('BMP'));
+      document.getElementById("btnPickEMP").addEventListener("click", () => togglePickMode('EMP'));
+
+      document.getElementById("btnCtxLocate").addEventListener("click", async () => {
+         const routeId = document.getElementById("ctxRouteID").value.trim();
+         const bmpInput = document.getElementById("ctxBMPRef").value.trim();
+         const empInput = document.getElementById("ctxEMPRef").value.trim();
+         const status = document.getElementById("ctxStatus");
+         if(!routeId) { alert("Main Route ID is required."); return; }
+         
+         status.innerHTML = "Fetching Main Route Geometry...";
+         const q = new Query({ where: `CO_ROUTEID = '${routeId}' AND TODATE IS NULL`, returnGeometry: true, returnM: true, outFields: ["*"], outSpatialReference: view.spatialReference });
+         try {
+             const routeResults = await query.executeQueryJSON(networkLayerUrl, q);
+             if (routeResults.features.length === 0) { status.innerHTML = "Route Not Found."; alert("Main Route ID not found."); return; }
+             const rawFeatures = routeResults.features;
+             const allGeoms = rawFeatures.map(f => f.geometry);
+             let routeGeoForDraw = null;
+             try { routeGeoForDraw = geometryEngine.simplify(geometryEngine.union(allGeoms)); } catch(e) { routeGeoForDraw = allGeoms[0]; }
+             const bounds = getMeasureBounds({paths: allGeoms.flatMap(g => g.paths)});
+             let bmpMeasure = null; let empMeasure = null;
+
+             async function processInput(val, type) {
+                 if(!isNaN(parseFloat(val)) && isFinite(val) && !val.includes(",")) {
+                     const m = parseFloat(val); const eps = 0.001; 
+                     if (m < bounds.minM - eps || m > bounds.maxM + eps) { alert(`${type} Measure ${m} out of range (${bounds.minM.toFixed(3)} - ${bounds.maxM.toFixed(3)})`); throw new Error("Out of range"); }
+                     return m;
+                 } else {
+                     let pt = null;
+                     const coordRegex = /^-?\d+(\.\d+)?\s*,\s*-?\d+(\.\d+)?$/;
+                     if (coordRegex.test(val.trim())) {
+                         const parts = val.split(","); pt = webMercatorUtils.geographicToWebMercator(new Point({ latitude: parseFloat(parts[0]), longitude: parseFloat(parts[1]), spatialReference: { wkid: 4326 } }));
+                     } else { try { pt = await resolveLocation(val); } catch (err) { alert(err.message); throw err; } }
+                     if(pt) {
+                         const snap = getMeasureOnFeatureArray(rawFeatures, pt);
+                         if(snap) {
+                             view.graphics.add(new Graphic({ geometry: pt, symbol: { type: "simple-marker", color: "#cc5200", size: 10 } }));
+                             view.graphics.add(new Graphic({ geometry: new Polyline({ paths: [[[pt.x, pt.y], [snap.snapPoint.x, snap.snapPoint.y]]], spatialReference: view.spatialReference }), symbol: { type: "simple-line", color: [50, 50, 50, 0.8], width: 1, style: "short-dash" } }));
+                             return snap.m;
+                         } else { return null; }
+                     } return null;
+                 }
+             }
+
+             view.graphics.removeAll(); view.closePopup();
+             if (!bmpInput && !empInput) { bmpMeasure = bounds.minM; empMeasure = bounds.maxM; status.innerHTML = "Showing full route."; } else {
+                 if(bmpInput) bmpMeasure = await processInput(bmpInput, "Start"); if(empInput) empMeasure = await processInput(empInput, "End");
+                 if (bmpMeasure !== null && empMeasure === null) { empMeasure = bmpMeasure; } if (bmpMeasure === null && empMeasure !== null) { bmpMeasure = empMeasure; }
+                 status.innerHTML = "Calculated. Drawing...";
+             }
+
+             document.getElementById("infoPanel").style.display = "block";
+             const safeMin = parseFloat(Math.min(bmpMeasure, empMeasure).toFixed(3)); const safeMax = parseFloat(Math.max(bmpMeasure, empMeasure).toFixed(3));
+             document.getElementById("resultsList").innerHTML = `
+                <div class="route-card" style="border-left-color:#004772; cursor:default;">
+                    <div style="font-weight:bold; font-size:16px;">Find Measure Result</div>
+                    <div><b>Route:</b> ${routeId}</div>
+                    <div><b>Calc Range:</b> ${safeMin.toFixed(3)} - ${safeMax.toFixed(3)}</div>
+                </div>`;
+
+             if (Math.abs(safeMax - safeMin) < 0.002) {
+                 const p = getPointAtMeasure(routeGeoForDraw, safeMin);
+                 if(p) { view.goTo({ target: p, zoom: 16 }); view.graphics.add(new Graphic({ geometry: p, symbol: { type: "simple-marker", color: [0,71,114,1], size: 12, outline: {color:"white", width: 2} } })); view.graphics.add(createLabel(p, safeMin.toFixed(3))); }
+             } else {
+                 if (!bmpInput && !empInput) {
+                      view.goTo(routeGeoForDraw); view.graphics.add(new Graphic({ geometry: routeGeoForDraw, symbol: { type: "simple-line", color: [0, 71, 114, 1], width: 6 } }));
+                      if(bounds.minM !== Infinity) view.graphics.add(createLabel(getPointAtMeasure(routeGeoForDraw, bounds.minM), safeMin.toFixed(3)));
+                      if(bounds.maxM !== -Infinity) view.graphics.add(createLabel(getPointAtMeasure(routeGeoForDraw, bounds.maxM), safeMax.toFixed(3)));
+                 } else {
+                      const seg = sliceRouteByMeasure(routeGeoForDraw, safeMin, safeMax);
+                      if(seg) {
+                          view.goTo(seg); view.graphics.add(new Graphic({ geometry: seg, symbol: { type: "simple-line", color: [0, 71, 114, 1], width: 6 } })); 
+                          const p1 = getPointAtMeasure(routeGeoForDraw, safeMin); const p2 = getPointAtMeasure(routeGeoForDraw, safeMax);
+                          if(p1) view.graphics.add(createLabel(p1, safeMin.toFixed(3))); if(p2) view.graphics.add(createLabel(p2, safeMax.toFixed(3)));
+                      }
+                 }
+             }
+             if(status.innerHTML !== "Showing full route.") status.innerHTML = "Done.";
+         } catch(e) { console.error(e); status.innerHTML = "Error calculating."; }
+      });
+      
       window.fetchRilDetails = async (routeId, measure) => {
         const modal = document.getElementById("detailsModal");
         const content = document.getElementById("modalDataContent");
-        modal.style.display = "block";
-        content.innerHTML = "<p>Loading data from RIL database...</p>";
+        modal.style.display = "block"; content.innerHTML = "<p>Loading data from RIL database...</p>";
+        // Shift focus to modal body for screen readers
+        document.querySelector(".close-icon-modal").focus();
 
         try {
           const system = routeId.substring(2, 3);
-          if (system === "0") {
-             content.innerHTML = `<div class="modal-head">MNS Route</div><p>No data is maintained in the RIL database for MNS routes.</p>`;
-             return;
-          }
-
-          const timestamp = new Date().getTime();
-          const initUrl = `${rillrsRouteUrl}${routeId}?_=${timestamp}`;
-
-          const routeRes = await fetch(initUrl);
-          if (!routeRes.ok) throw new Error(`Initial Query failed: ${routeRes.status}`);
+          if (system === "0") { content.innerHTML = `<div class="modal-head">MNS Route</div><p>No data is maintained in the RIL database for MNS routes.</p>`; return; }
+          const timestamp = new Date().getTime(); const initUrl = `${rillrsRouteUrl}${routeId}?_=${timestamp}`;
+          const routeRes = await fetch(initUrl); if (!routeRes.ok) throw new Error(`Initial Query failed: ${routeRes.status}`);
           const routeData = await routeRes.json();
-
-          if (!routeData || routeData.length === 0) {
-             content.innerHTML = `<div class="modal-head">Route Not Found</div><p>Route <b>${routeId}</b> returned no records.</p>`;
-             return;
-          }
+          if (!routeData || routeData.length === 0) { content.innerHTML = `<div class="modal-head">Route Not Found</div><p>Route <b>${routeId}</b> returned no records.</p>`; return; }
 
           const targetMeasure = Math.abs(measure); 
-          const matchedSegment = routeData.find(ril => {
-              const start = parseFloat(ril.StartingMilepoint);
-              const end = parseFloat(ril.EndingMilepoint);
-              return (targetMeasure >= start - 0.001) && (targetMeasure <= end + 0.001);
-          });
+          const matchedSegment = routeData.find(ril => { const start = parseFloat(ril.StartingMilepoint); const end = parseFloat(ril.EndingMilepoint); return (targetMeasure >= start - 0.001) && (targetMeasure <= end + 0.001); });
 
           if (!matchedSegment) {
-              let min = Infinity, max = -Infinity;
-              routeData.forEach(seg => { let s = parseFloat(seg.StartingMilepoint); let e = parseFloat(seg.EndingMilepoint); if(s < min) min = s; if(e > max) max = e; });
-              content.innerHTML = `<div class="modal-head" style="color:#d9534f;">Segment Not Found</div><p>No information in the RIL database for this exact location.</p><p style="background:#f9f9f9; padding:8px; border-left:4px solid #d9534f;"><b>Valid Range:</b> ${min.toFixed(3)} to ${max.toFixed(3)}</p>`;
+              let min = Infinity, max = -Infinity; routeData.forEach(seg => { let s = parseFloat(seg.StartingMilepoint); let e = parseFloat(seg.EndingMilepoint); if(s < min) min = s; if(e > max) max = e; });
+              content.innerHTML = `<div class="modal-head" style="color:#a94442;">Segment Not Found</div><p>No information in the RIL database for this exact location.</p><p style="background:#f2f2f2; padding:8px; border-left:5px solid #a94442;"><b>Valid Range:</b> ${min.toFixed(3)} to ${max.toFixed(3)}</p>`;
               return;
           }
 
           const detailId = matchedSegment.DetailID;
-          if (!detailId) {
-             content.innerHTML = `<div class="modal-head">Details Unavailable</div><p>No DetailID found for this segment.</p>`;
-             return;
-          }
+          if (!detailId) { content.innerHTML = `<div class="modal-head">Details Unavailable</div><p>No DetailID found for this segment.</p>`; return; }
 
           const detailsUrl = `${rillrsDetailsUrl}${detailId}?_=${timestamp}`;
-          const detailsRes = await fetch(detailsUrl);
-          if (!detailsRes.ok) throw new Error(`Details Query failed: ${detailsRes.status}`);
+          const detailsRes = await fetch(detailsUrl); if (!detailsRes.ok) throw new Error(`Details Query failed: ${detailsRes.status}`);
           const detailsData = await detailsRes.json();
-          
           const d = Array.isArray(detailsData) ? detailsData[0] : detailsData;
 
-          if (!d) {
-             content.innerHTML = `<div class="modal-head">Details Unavailable</div><p>Extended details could not be retrieved.</p>`;
-             return;
-          }
-
+          if (!d) { content.innerHTML = `<div class="modal-head">Details Unavailable</div><p>Extended details could not be retrieved.</p>`; return; }
           const v = (val) => (val == null) ? "N/A" : val;
 
           let html = `<div class="modal-head">Details for ${v(d.County)} county | Route ${v(d.Route)} | Subroute ${v(d.SubRoute)}</div>`;
@@ -462,271 +657,146 @@
           html += `<li><b>Special Systems:</b> <span>${v(d.SpecialSystemsCode)} - ${v(d.SpecialSystems)}</span></li>`;
           html += `<li><b>West Virginia Legal Functional Classification:</b> <span>${v(d.WVLFCCode)} - ${v(d.WVLFC)}</span></li>`;
           html += `</ul>`;
-
+          
           content.innerHTML = html;
-
-        } catch (error) {
-           console.error("API Fetch Error:", error);
-           content.innerHTML = `<p style="color:red;">API Network Error: ${error.message}</p>`;
-        }
+        } catch (error) { content.innerHTML = `<p style="color:#cc0000; font-weight:bold;">API Network Error: ${error.message}</p>`; }
       };
 
-      // Modal Close Listeners
       document.querySelector(".close-icon-modal").addEventListener("click", () => { document.getElementById("detailsModal").style.display = "none"; });
-      window.onclick = function(event) { if (event.target == document.getElementById("detailsModal")) { document.getElementById("detailsModal").style.display = "none"; } }
+      document.querySelector(".close-icon-help").addEventListener("click", () => { document.getElementById("helpModal").style.display = "none"; });
+      
+      window.onclick = function(event) { 
+          if (event.target == document.getElementById("detailsModal")) { document.getElementById("detailsModal").style.display = "none"; }
+          if (event.target == document.getElementById("helpModal")) { document.getElementById("helpModal").style.display = "none"; }
+      }
+      document.addEventListener('keydown', function(event) {
+          if (event.key === "Escape") { document.getElementById("detailsModal").style.display = "none"; document.getElementById("helpModal").style.display = "none"; }
+      });
 
-      // --- MAP CLICK LOGIC ---
       view.on("click", (event) => {
+        if (pickingTarget) {
+            event.stopPropagation();
+            const geoPt = webMercatorUtils.webMercatorToGeographic(event.mapPoint);
+            document.getElementById(pickingTarget === 'BMP' ? 'ctxBMPRef' : 'ctxEMPRef').value = `${geoPt.latitude.toFixed(6)}, ${geoPt.longitude.toFixed(6)}`;
+            togglePickMode(pickingTarget); return;
+        }
+
         document.getElementById("infoPanel").style.display = "block";
         document.getElementById("resultsList").innerHTML = "<p>Searching...</p>";
         const mQuery = new Query({ geometry: event.mapPoint, distance: 30, units: "meters", spatialRelationship: "intersects", returnGeometry: true, returnM: true, outFields: ["ROUTEID"], outSpatialReference: view.spatialReference });
         const streetQuery = new Query({ geometry: event.mapPoint, distance: 30, units: "meters", spatialRelationship: "intersects", outFields: ["STREET_NAME"], returnGeometry: true, where: "RH_TO_DATE IS NULL" });
         
-        Promise.all([query.executeQueryJSON(lrsLayerUrl, mQuery), streetLayer.queryFeatures(streetQuery)]).then(([mResults, streetResults]) => {
+        Promise.all([query.executeQueryJSON(lrsLayerUrl, mQuery), streetLayer.queryFeatures(streetQuery)]).then(async ([mResults, streetResults]) => {
           if (mResults.features.length === 0) { document.getElementById("resultsList").innerHTML = "<p>No routes found.</p>"; return; }
-          const processed = mResults.features.map(g => { const c = getMeasureOnLine(g.geometry, event.mapPoint); return { graphic:g, id:g.attributes.ROUTEID, m:c.m, dist:c.distance, snap:c.snapPoint }; });
-          const best = {}; processed.forEach(i => { if(!best[i.id] || i.dist < best[i.id].dist) best[i.id] = i; });
+          const processed = mResults.features.map(g => { const c = getMeasureOnFeatureArray([g], event.mapPoint); return { graphic:g, id:g.attributes.ROUTEID, m:c ? c.m : null, dist:c ? c.distance : Infinity, snap:c ? c.snapPoint : null }; });
+          const best = {}; processed.forEach(i => { if(i.m !== null && (!best[i.id] || i.dist < best[i.id].dist)) best[i.id] = i; });
           const uniq = Object.values(best).sort((a,b) => a.dist - b.dist);
           let html = "";
           
-          uniq.forEach((item, idx) => {
-            const info = parseRouteInfo(item.id);
-            let sName = "Unknown"; 
-            if (streetResults.features.length > 0) {
-               const routeBuffer = geometryEngine.buffer(item.graphic.geometry, 5, "meters");
-               let bestOverlap = -1;
-               
-               streetResults.features.forEach(s => {
-                  const intersection = geometryEngine.intersect(routeBuffer, s.geometry);
-                  if (intersection) { 
-                      const len = geometryEngine.planarLength(intersection, "meters"); 
-                      if (len > bestOverlap) { 
-                          bestOverlap = len;
-                          sName = s.attributes.STREET_NAME || "Unnamed"; 
-                      }
-                  }
-               });
-               
-               if (bestOverlap <= 1) {
-                  let sDist = Infinity;
-                  streetResults.features.forEach(s => { const d = geometryEngine.distance(item.snap, s.geometry); if(d < sDist) { sDist=d; sName=s.attributes.STREET_NAME||"Unnamed"; } });
-               }
-            }
-            const safeM = (item.m || 0); 
-            html += `<div class="route-card" onmouseover="window.highlightRoute(${idx})" onmouseout="window.clearHighlight()">
-              <div class="route-title">${info.system} ${info.number}</div>
-              <div class="route-detail"><b>ID:</b> ${item.id}</div>
-              <div class="route-detail"><b>Street:</b> ${sName}</div>
-              <div><span class="measure-badge">MP: ${safeM.toFixed(3)}</span></div>
-              <button class="details-btn" onclick="window.fetchRilDetails('${item.id}', ${safeM})">Details</button>
-            </div>`;
-          });
-          document.getElementById("resultsList").innerHTML = html;
-          window.currentData = uniq;
-          window.clickLoc = event.mapPoint;
+          for(let i=0; i<uniq.length; i++) {
+              const item = uniq[i]; const info = parseRouteInfo(item.id); let sName = "Unknown";
+              if (streetResults.features.length > 0) {
+                 const routeBuffer = geometryEngine.buffer(item.graphic.geometry, 5, "meters"); let bestOverlap = -1;
+                 streetResults.features.forEach(s => { const intersection = geometryEngine.intersect(routeBuffer, s.geometry); if (intersection) { const len = geometryEngine.planarLength(intersection, "meters"); if (len > bestOverlap) { bestOverlap = len; sName = s.attributes.STREET_NAME || "Unnamed"; } } });
+                 if (bestOverlap <= 1) { let sDist = Infinity; streetResults.features.forEach(s => { const d = geometryEngine.distance(item.snap, s.geometry); if(d < sDist) { sDist=d; sName=s.attributes.STREET_NAME||"Unnamed"; } }); }
+              }
+              const safeM = (item.m || 0); let showDetails = true;
+              try { const checkUrl = `${rillrsRouteUrl}${item.id}?_=${new Date().getTime()}`; const checkRes = await fetch(checkUrl); const checkData = await checkRes.json(); if (!checkData || checkData.length === 0) showDetails = false; } catch(e) { showDetails = false; }
+
+              html += `<div class="route-card" onmouseover="window.highlightRoute(${i})" onmouseout="window.clearHighlight()">
+                <div style="font-weight:bold; font-size:16px;">${info.system} ${info.number}</div>
+                <div><b>ID:</b> ${item.id}</div>
+                <div><b>Street:</b> ${sName}</div>
+                <div><span class="measure-badge">MP: ${safeM.toFixed(3)}</span></div>
+                ${showDetails ? `<button class="details-btn" aria-label="View Route Details for ${item.id}" onclick="window.fetchRilDetails('${item.id}', ${safeM})">Details</button>` : ''}
+              </div>`;
+          }
+          document.getElementById("resultsList").innerHTML = html; window.currentData = uniq; window.clickLoc = event.mapPoint;
         });
       });
-
-      // --- FIND MEASURE LOGIC (FIX APPLIED HERE: TODATE) ---
-      function executeRouteSearch(rID, bmp, emp) {
-         view.graphics.removeAll();
-         document.getElementById("infoPanel").style.display = "block";
-         document.getElementById("resultsList").innerHTML = "<p>Locating...</p>";
-         view.closePopup(); 
-         
-         const q = new Query({ 
-             where: `CO_ROUTEID = '${rID}' AND TODATE IS NULL`, 
-             returnGeometry: true, 
-             returnM: true, 
-             outFields: ["*"], 
-             outSpatialReference: view.spatialReference 
-         });
-         
-         query.executeQueryJSON(networkLayerUrl, q).then(results => {
-            if (results.features.length === 0) { alert("Route not found in Network Layer."); document.getElementById("resultsList").innerHTML = ""; return; }
-            
-            const allGeoms = results.features.map(f => f.geometry);
-            const mergedGeo = geometryEngine.union(allGeoms); 
-            const bounds = getMeasureBounds(mergedGeo); 
-            const hasBMP = (bmp !== undefined && !isNaN(bmp)); const hasEMP = (emp !== undefined && !isNaN(emp));
-            const info = parseRouteInfo(rID);
-            
-            const safeMin = parseFloat(bounds.minM.toFixed(3));
-            const safeMax = parseFloat(bounds.maxM.toFixed(3));
-
-            if (hasBMP && (bmp < safeMin || bmp > safeMax)) { alert(`BMP out of range (${safeMin.toFixed(3)}-${safeMax.toFixed(3)})`); return; }
-            if (hasEMP && (emp < safeMin || emp > safeMax)) { alert(`EMP out of range (${safeMin.toFixed(3)}-${safeMax.toFixed(3)})`); return; }
-            
-            document.getElementById("resultsList").innerHTML = `<div class="route-card" style="border-left-color:#0079c1; cursor:default;"><div class="route-title">${info.system} ${info.number}</div><div class="route-detail">ID: ${rID}</div><div class="route-detail">Range: ${safeMin.toFixed(3)} - ${safeMax.toFixed(3)}</div></div>`;
-            
-            if (!hasBMP && !hasEMP) { 
-                view.goTo(mergedGeo); 
-                view.graphics.add(new Graphic({ geometry: mergedGeo, symbol: { type: "simple-line", color: [0, 255, 255, 0.8], width: 6 } })); 
-                if(bounds.startPoint) view.graphics.add(createLabel(bounds.startPoint, safeMin.toFixed(3))); 
-                if(bounds.endPoint) view.graphics.add(createLabel(bounds.endPoint, safeMax.toFixed(3))); 
-            }
-            else if (hasBMP && !hasEMP) { 
-                const p = getPointAtMeasure(mergedGeo, bmp); 
-                if(p) { 
-                    view.goTo({ target: p, zoom: 16 }); 
-                    view.graphics.add(new Graphic({ geometry: p, symbol: { type: "simple-marker", color: "red", size: 10, outline: {color:"black"} } })); 
-                    view.graphics.add(createLabel(p, bmp.toFixed(3))); 
-                } 
-            }
-            else if (hasBMP && hasEMP) { 
-                const seg = sliceRouteByMeasure(mergedGeo, bmp, emp); 
-                if(seg) { 
-                    view.goTo(seg); 
-                    view.graphics.add(new Graphic({ geometry: seg, symbol: { type: "simple-line", color: [255, 0, 0, 1], width: 4 } })); 
-                    const p1 = getPointAtMeasure(mergedGeo, bmp); 
-                    const p2 = getPointAtMeasure(mergedGeo, emp); 
-                    if(p1) view.graphics.add(createLabel(p1, bmp.toFixed(3))); 
-                    if(p2) view.graphics.add(createLabel(p2, emp.toFixed(3))); 
-                } 
-            }
-         }).catch(err => { console.error(err); alert("Search failed."); document.getElementById("resultsList").innerHTML = ""; });
-      }
 
       function renderBridgeResults(bridgeResults, rawInput, searchArea = null) {
           document.getElementById("btnFindBridge").innerText = "Find Bridge";
-          
           if (bridgeResults.features.length === 0) {
               if (searchArea) {
-                  view.graphics.removeAll();
-                  view.graphics.add(new Graphic({ geometry: searchArea, symbol: { type: "simple-fill", color: [255, 0, 0, 0.1], outline: { color: "red", style: "dash" } } }));
+                  view.graphics.removeAll(); view.graphics.add(new Graphic({ geometry: searchArea, symbol: { type: "simple-fill", color: [0, 71, 114, 0.1], outline: { color: [0, 71, 114, 1], style: "dash" } } })); 
                   view.goTo(searchArea.extent.expand(5));
-                  document.getElementById("resultsList").innerHTML = `
-                      <div class="bridge-card" style="border-left-color: #d9534f;">
-                          <div class="route-title" style="color: #d9534f;">No Bridge Found</div>
-                          <div class="route-detail">Location: ${rawInput}</div>
-                          <div class="route-detail"><i>Zoomed to calculated measure location.</i></div>
-                      </div>`;
+                  document.getElementById("resultsList").innerHTML = `<div class="bridge-card" style="border-left-color: #a94442;"><div style="color: #a94442; font-weight:bold; font-size:16px;">No Bridge Found</div><div>Location: ${rawInput}</div><div><i>Zoomed to calculated measure location.</i></div></div>`;
                   document.getElementById("infoPanel").style.display = "block";
-              } else {
-                  alert("No active bridges found matching criteria.");
-              }
+              } else { alert("No active bridges found matching criteria."); }
               return;
           }
-          
-          view.graphics.removeAll();
-          let html = "";
-          window.currentBridgeResults = bridgeResults.features;
-          
+          view.graphics.removeAll(); let html = ""; window.currentBridgeResults = bridgeResults.features;
           bridgeResults.features.forEach((b, idx) => {
-             const attr = b.attributes;
-             const barsId = attr.BARSid || attr.OBJECTID; 
-             
-             html += `<div class="bridge-card" 
-                           onclick="window.zoomToBridge(${attr.OBJECTID})"
-                           onmouseover="window.highlightBridge(${idx})" 
-                           onmouseout="window.clearHighlightBridge()">
-                 <div class="route-title">Bridge Found</div>
-                 <div class="route-detail"><b>BARS ID:</b> ${barsId}</div>
-                 <div class="route-detail"><b>Ref:</b> ${rawInput}</div>
-             </div>`;
-             
-             view.graphics.add(new Graphic({ 
-                 geometry: b.geometry, 
-                 symbol: { type: "simple-marker", style: "diamond", color: "red", size: 12, outline: { width: 2, color: "yellow" } } 
-             }));
+             const attr = b.attributes; const barsId = attr.BARSid || attr.OBJECTID; 
+             html += `<div class="bridge-card" onclick="window.zoomToBridge(${attr.OBJECTID})" onmouseover="window.highlightBridge(${idx})" onmouseout="window.clearHighlightBridge()"><div style="font-weight:bold; font-size:16px;">Bridge Found</div><div><b>BARS ID:</b> ${barsId}</div><div><b>Ref:</b> ${rawInput}</div></div>`;
+             view.graphics.add(new Graphic({ geometry: b.geometry, symbol: { type: "simple-marker", style: "diamond", color: [0, 71, 114, 0.9], size: 14, outline: { width: 2, color: "white" } } }));
           });
-          
-          if (searchArea) {
-              view.graphics.add(new Graphic({ geometry: searchArea, symbol: { type: "simple-fill", color: [255, 0, 0, 0.1], outline: { color: "red", style: "dash" } } }));
-              view.goTo(searchArea.extent.expand(2));
-          } else if (bridgeResults.features.length === 1) {
-              view.goTo({ target: bridgeResults.features[0].geometry, zoom: 16 });
-          } else {
-              view.goTo(bridgeResults.features.map(f => f.geometry));
-          }
-          
-          document.getElementById("resultsList").innerHTML = html;
-          document.getElementById("infoPanel").style.display = "block";
+          if (searchArea) { view.graphics.add(new Graphic({ geometry: searchArea, symbol: { type: "simple-fill", color: [0, 71, 114, 0.1], outline: { color: [0, 71, 114, 1], style: "dash" } } })); view.goTo(searchArea.extent.expand(2)); } 
+          else if (bridgeResults.features.length === 1) { view.goTo({ target: bridgeResults.features[0].geometry, zoom: 16 }); } 
+          else { view.goTo(bridgeResults.features.map(f => f.geometry)); }
+          document.getElementById("resultsList").innerHTML = html; document.getElementById("infoPanel").style.display = "block";
       }
 
-      // --- BRIDGE SEARCH (FIX APPLIED HERE: TODATE) ---
       document.getElementById("btnFindBridge").addEventListener("click", () => {
-        let rawInput = document.getElementById("inputBridgeID").value.trim();
-        if (!rawInput) { alert("Please enter a Bridge Number or BARSID."); return; }
-        document.getElementById("btnFindBridge").innerText = "Searching...";
-        view.graphics.removeAll();
-        view.closePopup();
-
+        let rawInput = document.getElementById("inputBridgeID").value.trim(); if (!rawInput) { alert("Please enter a Bridge Number or BARSID."); return; }
+        document.getElementById("btnFindBridge").innerText = "Searching..."; view.graphics.removeAll(); view.closePopup();
         if (!rawInput.includes("-")) {
-            const bQuery = new Query({ 
-                where: `UPPER(BARSid) LIKE UPPER('%${rawInput}%') AND RH_TO_DATE IS NULL`, 
-                returnGeometry: true, 
-                outFields: ["*"] 
-            });
+            const bQuery = new Query({ where: `UPPER(BARSid) LIKE UPPER('%${rawInput}%') AND RH_TO_DATE IS NULL`, returnGeometry: true, outFields: ["*"] });
             bridgeLayer.queryFeatures(bQuery).then(bridgeResults => {
-                if(bridgeResults.features.length === 0) {
-                     alert("No active bridges found matching BARSID: " + rawInput); 
-                     document.getElementById("btnFindBridge").innerText = "Find Bridge";
-                     return;
-                }
+                if(bridgeResults.features.length === 0) { alert("No active bridges found matching BARSID: " + rawInput); document.getElementById("btnFindBridge").innerText = "Find Bridge"; return; }
                 renderBridgeResults(bridgeResults, rawInput);
-            }).catch(err => {
-                console.error(err); alert("Search Error."); document.getElementById("btnFindBridge").innerText = "Find Bridge";
-            });
+            }).catch(err => { console.error(err); alert("Search Error."); document.getElementById("btnFindBridge").innerText = "Find Bridge"; });
             return;
         }
-
-        const parts = rawInput.split("-");
-        if (parts.length < 3) { alert("Invalid Format. Use: CC-Route-MP, CC-Route/Sub-MP, or BARSID"); document.getElementById("btnFindBridge").innerText = "Find Bridge"; return; }
-        const countyCode = parts[0]; let routeStr = parts[1]; const milepoint = parseFloat(parts[2]);
-        if (isNaN(milepoint)) { alert("Invalid Milepoint."); document.getElementById("btnFindBridge").innerText = "Find Bridge"; return; }
-        let routeNum = ""; let subRouteNum = "00";
-        if (routeStr.includes("/")) { const rParts = routeStr.split("/"); routeNum = rParts[0]; subRouteNum = rParts[1].padStart(2, "0"); } else { routeNum = routeStr; }
-        const paddedRoute = routeNum.padStart(4, "0");
-        const lrsQueryStr = `${countyCode}_${paddedRoute}${subRouteNum}%`;
+        const parts = rawInput.split("-"); if (parts.length < 3) { alert("Invalid Format. Use: CC-Route-MP, CC-Route/Sub-MP, or BARSID"); document.getElementById("btnFindBridge").innerText = "Find Bridge"; return; }
+        const countyCode = parts[0]; let routeStr = parts[1]; const milepoint = parseFloat(parts[2]); if (isNaN(milepoint)) { alert("Invalid Milepoint."); document.getElementById("btnFindBridge").innerText = "Find Bridge"; return; }
+        let routeNum = ""; let subRouteNum = "00"; if (routeStr.includes("/")) { const rParts = routeStr.split("/"); routeNum = rParts[0]; subRouteNum = rParts[1].padStart(2, "0"); } else { routeNum = routeStr; }
+        const paddedRoute = routeNum.padStart(4, "0"); const lrsQueryStr = `${countyCode}_${paddedRoute}${subRouteNum}%`;
         
-        // FIX: Updated to use TODATE for Network Layer (Layer 89)
-        const q = new Query({ 
-            where: `CO_ROUTEID LIKE '${lrsQueryStr}' AND TODATE IS NULL`, 
-            returnGeometry: true, 
-            returnM: true, 
-            outFields: ["*"] 
-        });
-        
-        query.executeQueryJSON(networkLayerUrl, q).then(lrsResults => {
+        query.executeQueryJSON(networkLayerUrl, new Query({ where: `CO_ROUTEID LIKE '${lrsQueryStr}' AND TODATE IS NULL`, returnGeometry: true, returnM: true, outFields: ["*"] })).then(lrsResults => {
            if (lrsResults.features.length === 0) { alert("No route found matching that bridge number."); document.getElementById("btnFindBridge").innerText = "Find Bridge"; return; }
-           let searchGeometries = [];
-           lrsResults.features.forEach(feat => { const pt = getPointAtMeasure(feat.geometry, milepoint); if (pt) { const buffer = geometryEngine.buffer(pt, 100, "feet"); searchGeometries.push(buffer); } });
+           let searchGeometries = []; lrsResults.features.forEach(feat => { const pt = getPointAtMeasure(feat.geometry, milepoint); if (pt) { const buffer = geometryEngine.buffer(pt, 100, "feet"); searchGeometries.push(buffer); } });
            if (searchGeometries.length === 0) { alert(`Milepoint ${milepoint} not found on the route geometry.`); document.getElementById("btnFindBridge").innerText = "Find Bridge"; return; }
            const searchArea = geometryEngine.union(searchGeometries);
-           const bQuery = new Query({ geometry: searchArea, spatialRelationship: "intersects", outFields: ["*"], returnGeometry: true, where: "RH_TO_DATE IS NULL" });
-           
-           bridgeLayer.queryFeatures(bQuery).then(bridgeResults => {
-              renderBridgeResults(bridgeResults, rawInput, searchArea);
-           }).catch(err => { console.error(err); alert("Search Error."); document.getElementById("btnFindBridge").innerText = "Find Bridge"; });
+           bridgeLayer.queryFeatures(new Query({ geometry: searchArea, spatialRelationship: "intersects", outFields: ["*"], returnGeometry: true, where: "RH_TO_DATE IS NULL" })).then(bridgeResults => { renderBridgeResults(bridgeResults, rawInput, searchArea); }).catch(err => { console.error(err); alert("Search Error."); document.getElementById("btnFindBridge").innerText = "Find Bridge"; });
         }).catch(err => { console.error(err); alert("Search Error."); document.getElementById("btnFindBridge").innerText = "Find Bridge"; });
       });
 
-      async function fetchAllIds(where) {
-        let allIds = []; let start = 0; let more = true;
-        while(more) { const q = new Query({ where: where, outFields: ["ROUTEID"], returnGeometry: false, start: start, num: 2000 }); const res = await query.executeQueryJSON(lrsLayerUrl, q); allIds.push(...res.features.map(f=>f.attributes.ROUTEID)); if(res.exceededTransferLimit) start += res.features.length; else more = false; } return allIds;
-      }
-      let countyRoutesData = []; 
-      const selCounty = document.getElementById("selCounty");
+      async function fetchAllIds(where) { let allIds = []; let start = 0; let more = true; while(more) { const q = new Query({ where: where, outFields: ["ROUTEID"], returnGeometry: false, start: start, num: 2000 }); const res = await query.executeQueryJSON(lrsLayerUrl, q); allIds.push(...res.features.map(f=>f.attributes.ROUTEID)); if(res.exceededTransferLimit) start += res.features.length; else more = false; } return allIds; }
+      let countyRoutesData = []; const selCounty = document.getElementById("selCounty");
       Object.keys(countyMap).sort().forEach(code => { const opt = document.createElement("option"); opt.value = code; opt.text = `${code} - ${countyMap[code]}`; selCounty.add(opt); });
-      selCounty.addEventListener("change", async () => {
-        resetDropdown("selSystem", "Loading..."); resetDropdown("selRoute"); resetDropdown("selSub"); resetDropdown("selSupp"); resetDropdown("selDir"); document.getElementById("btnBuild").disabled = true;
-        const code = selCounty.value; if (!code) return;
-        try { countyRoutesData = await fetchAllIds(`ROUTEID LIKE '${code}%'`); const distinctSys = [...new Set(countyRoutesData.map(id => id.substring(2, 3)))].sort(); resetDropdown("selSystem", "Select System"); const selSys = document.getElementById("selSystem"); distinctSys.forEach(s => { const opt = document.createElement("option"); opt.value = s; opt.text = systemMap[s] || `System ${s}`; selSys.add(opt); }); selSys.disabled = false; } catch (e) { console.error(e); alert("Error loading data."); }
-      });
+      selCounty.addEventListener("change", async () => { resetDropdown("selSystem", "Loading..."); resetDropdown("selRoute"); resetDropdown("selSub"); resetDropdown("selSupp"); resetDropdown("selDir"); document.getElementById("btnBuild").disabled = true; const code = selCounty.value; if (!code) return; try { countyRoutesData = await fetchAllIds(`ROUTEID LIKE '${code}%'`); const distinctSys = [...new Set(countyRoutesData.map(id => id.substring(2, 3)))].sort(); resetDropdown("selSystem", "Select System"); const selSys = document.getElementById("selSystem"); distinctSys.forEach(s => { const opt = document.createElement("option"); opt.value = s; opt.text = systemMap[s] || `System ${s}`; selSys.add(opt); }); selSys.disabled = false; } catch (e) { console.error(e); alert("Error loading data."); } });
       document.getElementById("selSystem").addEventListener("change", () => { const sys = document.getElementById("selSystem").value; const routes = countyRoutesData.filter(id => id.substring(2, 3) === sys); const distinctRt = [...new Set(routes.map(id => id.substring(3, 7)))].sort(); resetDropdown("selRoute", "Select Route"); const selRt = document.getElementById("selRoute"); distinctRt.forEach(r => { const opt = document.createElement("option"); opt.value = r; opt.text = parseInt(r, 10).toString(); selRt.add(opt); }); selRt.disabled = false; resetDropdown("selSub"); resetDropdown("selSupp"); resetDropdown("selDir"); });
       document.getElementById("selRoute").addEventListener("change", () => { const sys = document.getElementById("selSystem").value; const rt = document.getElementById("selRoute").value; const routes = countyRoutesData.filter(id => id.substring(2, 3) === sys && id.substring(3, 7) === rt); const distinctSub = [...new Set(routes.map(id => id.substring(7, 9)))].sort(); resetDropdown("selSub", "Select Sub"); const selSub = document.getElementById("selSub"); distinctSub.forEach(s => { const opt = document.createElement("option"); opt.value = s; opt.text = s; selSub.add(opt); }); selSub.disabled = false; resetDropdown("selSupp"); resetDropdown("selDir"); });
       document.getElementById("selSub").addEventListener("change", () => { const sys = document.getElementById("selSystem").value; const rt = document.getElementById("selRoute").value; const sub = document.getElementById("selSub").value; const routes = countyRoutesData.filter(id => id.substring(2,3) === sys && id.substring(3,7) === rt && id.substring(7,9) === sub); const distinctSupp = [...new Set(routes.map(id => id.substring(9, 11)))].sort(); resetDropdown("selSupp", "Select Supp"); const selSupp = document.getElementById("selSupp"); distinctSupp.forEach(s => { const opt = document.createElement("option"); opt.value = s; opt.text = s; selSupp.add(opt); }); selSupp.disabled = false; resetDropdown("selDir"); });
-      document.getElementById("selSupp").addEventListener("change", () => { const sys = document.getElementById("selSystem").value; const rt = document.getElementById("selRoute").value; const sub = document.getElementById("selSub").value; const supp = document.getElementById("selSupp").value; const routes = countyRoutesData.filter(id => id.substring(2,3) === sys && id.substring(3,7) === rt && id.substring(7,9) === sub && id.substring(9,11) === supp); const distinctDir = [...new Set(routes.map(id => id.substring(11, 13)))].sort(); resetDropdown("selDir", "Select Dir"); const selDir = document.getElementById("selDir"); distinctDir.forEach(d => { const opt = document.createElement("option"); opt.value = d; opt.text = d; selDir.add(opt); }); selDir.disabled = false; });
+      document.getElementById("selSupp").addEventListener("change", () => { const sys = document.getElementById("selSystem").value; const rt = document.getElementById("selRoute").value; const sub = document.getElementById("selSub").value; const supp = document.getElementById("selSupp").value; const routes = countyRoutesData.filter(id => id.substring(2,3) === sys && id.substring(3,7) === rt && id.substring(7,9) === sub && id.substring(9,11) === supp); const distinctDir = [...new Set(routes.map(id => id.substring(11, 13)))].sort(); resetDropdown("selDir", "Select Dir"); const selDir = document.getElementById("selDir"); distinctDir.forEach(d => { const opt = document.createElement("option"); opt.value = d; opt.text = d; selDir.add(opt); }); selDir.disabled = false; if(distinctDir.length === 1) { selDir.value = distinctDir[0]; document.getElementById("btnBuild").disabled = false; } });
       document.getElementById("selDir").addEventListener("change", () => { document.getElementById("btnBuild").disabled = false; });
-      document.getElementById("btnBuild").addEventListener("click", () => { const id = document.getElementById("selCounty").value + document.getElementById("selSystem").value + document.getElementById("selRoute").value + document.getElementById("selSub").value + document.getElementById("selSupp").value + document.getElementById("selDir").value; executeRouteSearch(id); });
+      
+      document.getElementById("btnBuild").addEventListener("click", () => { 
+          const id = document.getElementById("selCounty").value + document.getElementById("selSystem").value + document.getElementById("selRoute").value + document.getElementById("selSub").value + document.getElementById("selSupp").value + document.getElementById("selDir").value; 
+          document.getElementById("ctxRouteID").value = id; document.getElementById("ctxBMPRef").value = ""; document.getElementById("ctxEMPRef").value = ""; document.getElementById("contextPanel").scrollIntoView({behavior: "smooth"}); document.getElementById("btnCtxLocate").click();
+      });
+
       function resetDropdown(id, placeholder) { const sel = document.getElementById(id); sel.innerHTML = ""; sel.disabled = true; if (placeholder) { const opt = document.createElement("option"); opt.text = placeholder; opt.value = ""; sel.add(opt); } }
 
-      document.getElementById("btnSearch").addEventListener("click", () => { const id = document.getElementById("inputRouteID").value.trim(); const b = parseFloat(document.getElementById("inputBMP").value); const e = parseFloat(document.getElementById("inputEMP").value); if(id) executeRouteSearch(id, b, e); });
-      document.getElementById("btnClear").addEventListener("click", () => { view.graphics.removeAll(); document.getElementById("resultsList").innerHTML = "Click a route on the map or use the Search tool."; });
+      document.getElementById("btnClear").addEventListener("click", () => { view.graphics.removeAll(); document.getElementById("resultsList").innerHTML = "<p style='color: #333333; font-weight: bold;'>Click a route on the map or use the Search tool.</p>"; });
       document.getElementById("btnCloseInfo").addEventListener("click", () => { document.getElementById("infoPanel").style.display = "none"; view.graphics.removeAll(); });
 
     });
   </script>
+
+  <!-- Global site tag (gtag.js) - Google Analytics -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=UA-113343906-1"></script>
+
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag() {
+            dataLayer.push(arguments);
+        }
+        gtag('js', new Date());
+        gtag('config', 'UA-113343906-1');
+    </script>
+  
 </body>
 </html>

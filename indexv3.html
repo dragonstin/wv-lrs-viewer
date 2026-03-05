@@ -629,11 +629,35 @@
           html += `<ul class="modal-list">`;
           html += `<li><b>Route ID:</b> <span>${v(d.RouteID)}</span></li>`;
           html += `<li><b>Sign System:</b> <span>${v(d.SignSystemCode)} - ${v(d.SignSystem)}</span></li>`;
+          html += `<li><b>District:</b> <span>${v(d.District)}</span></li>`;
           html += `<li><b>Starting Milepoint:</b> <span>${v(d.StartingMilepoint)} Mile(s)</span></li>`;
           html += `<li><b>Length:</b> <span>${v(d.Length)} Mile(s)</span></li>`;
           html += `<li><b>Ending Milepoint:</b> <span>${v(d.EndingMilepoint)} Mile(s)</span></li>`;
-          html += `<li><b>Annual Average Daily Traffic:</b> <span>${v(d.AADT)} Vehicles/Day</span></li>`;
+          html += `<li><b>Surface Type:</b> <span>${v(d.SurfTypeCode)} - ${v(d.SurfType)}</span></li>`;
+          html += `<li><b>Suppl. Designation:</b> <span>${v(d.SRDCode)} - ${v(d.SRD)}</span></li>`;
+          html += `<li><b>Year of Survey/Change:</b> <span>${v(d.YearSurvey)}</span></li>`;
+          html += `<li><b>Annual Average Daily Traffic (AADT):</b> <span>${v(d.AADT)} Vehicles/Day</span></li>`;
+          html += `<li><b>Year of AADT:</b> <span>${v(d.AADT_Year)}</span></li>`;
+          html += `<li><b>Pavement Width:</b> <span>${v(d.PavementWidth)}'</span></li>`;
+          html += `<li><b>Grade Width:</b> <span>${v(d.GradeWidth)}'</span></li>`;
+          html += `<li><b>Number of Lanes:</b> <span>${v(d.NumberLanes)}</span></li>`;
+          html += `<li><b>Access Control:</b> <span>${v(d.AccessControlCode)} - ${v(d.AccessControl)}</span></li>`;
+          html += `<li><b>Designated Truck Route:</b> <span>${v(d.DesTruckRouteCode)} - ${v(d.DesTruckRoute)}</span></li>`;
+          html += `<li><b>Type of Facility:</b> <span>${v(d.FacilityTypeCode)} - ${v(d.FacilityType)}</span></li>`;
+          html += `<li><b>Federal Aid:</b> <span>${v(d.FASCode)} - ${v(d.FAS)}</span></li>`;
+          html += `<li><b>Federal Forest Highway:</b> <span>${v(d.FFHCode)} - ${v(d.FFH)}</span></li>`;
+          html += `<li><b>GovID:</b> <span>${v(d.GovIDCode)} - ${v(d.GovID)}</span></li>`;
+          html += `<li><b>Urban Area Code (DOH):</b> <span>${v(d.UrbanAreaDOHCode)} - ${v(d.UrbanAreaDOH)}</span></li>`;
+          html += `<li><b>Urban Area Code (Census):</b> <span>${v(d.UrbanAreaCensusCode)} - ${v(d.UrbanAreaCensus)}</span></li>`;
+          html += `<li><b>Rural-Urban:</b> <span>${v(d.RuralUrbanCode)} - ${v(d.RuralUrban)}</span></li>`;
+          html += `<li><b>Rural-Municipal:</b> <span>${v(d.RuralMunicipalCode)} - ${v(d.RuralMunicipal)}</span></li>`;
+          html += `<li><b>National Highway Functional Classification:</b> <span>${v(d.FSystemCode)} - ${v(d.FSystem)}</span></li>`;
+          html += `<li><b>National Highway System (NHS):</b> <span>${v(d.NHSCode)} - ${v(d.NHS)}</span></li>`;
+          html += `<li><b>Reversible Lanes:</b> <span>${v(d.ReversibleLanesCode)} - ${v(d.ReversibleLanes)}</span></li>`;
+          html += `<li><b>Special Systems:</b> <span>${v(d.SpecialSystemsCode)} - ${v(d.SpecialSystems)}</span></li>`;
+          html += `<li><b>West Virginia Legal Functional Classification:</b> <span>${v(d.WVLFCCode)} - ${v(d.WVLFC)}</span></li>`;
           html += `</ul>`;
+          
           content.innerHTML = html;
         } catch (error) { content.innerHTML = `<p style="color:#cc0000; font-weight:bold;">API Network Error: ${error.message}</p>`; }
       };

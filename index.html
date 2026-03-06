@@ -276,8 +276,8 @@
                 <div><b>Route Builder:</b> Use this tool to piece together a Route ID by selecting County, System, Route, etc., if you do not already know it.</div>
             </li>
             <li>
-                <span class="help-icon-box" aria-hidden="true"><span class="esri-icon-polyline" style="font-size: 18px;"></span></span>
-                <div><b>Find Measure:</b> Calculate ranges or specific locations along a route. You can enter Milepoints, GPS coordinates, or City names. Leaving the Start and End references blank will highlight the entire route.</div>
+                <span class="help-icon-box" aria-hidden="true"><span class="esri-icon-polyline" style="font-size: 18px; padding:0 7px;"></span></span>
+                <div><b>Find Measure:</b> Calculate ranges or specific locations along a route. You can enter Milepoints, GPS coordinates, or City names/Addresses. Leaving the Start and End references blank will highlight the entire route.</div>
             </li>
             <li>
                 <span class="help-icon-box" aria-hidden="true"><span class="esri-icon-search" style="font-size: 18px;"></span></span>
@@ -285,7 +285,7 @@
             </li>
             <li>
                 <span class="help-icon-box" aria-hidden="true"><span class="custom-bridge-icon"></span></span>
-                <div><b>Bridge Lookup:</b> Find bridges by Bridge Number (e.g. 20-77-103.65) or BARSID (e.g. 20A123).</div>
+                <div><b>Bridge Lookup:</b> Find bridges by Bridge Number (e.g. 20-77-103.65) or BARSID (e.g. 20A403).</div>
             </li>
             <li>
                 <span class="help-icon-box" aria-hidden="true"><span class="esri-icon-layers" style="font-size: 18px;"></span></span>
@@ -332,7 +332,7 @@
       const wvImageryLayer = new TileLayer({
         url: "https://services.wvgis.wvu.edu/arcgis/rest/services/Imagery_BaseMaps_EarthCover/wv_imagery_WVGISTC_leaf_off_mosaic/MapServer"
       });
-      const wvImageryBasemap = new Basemap({ baseLayers: [wvImageryLayer], title: "WV Imagery (Leaf-Off)", id: "wv-imagery" });
+      const wvImageryBasemap = new Basemap({ baseLayers: [wvImageryLayer], title: "WV Imagery (Leaf-Off)", id: "wv-imagery", thumbnailUrl: "https://services.wvgis.wvu.edu/arcgis/rest/services/Imagery_BaseMaps_EarthCover/wv_imagery_WVGISTC_leaf_off_mosaic/MapServer/info/thumbnail"});
 
       const map = new Map({ basemap: enhancedBasemap });
       const view = new MapView({ container: "viewDiv", map: map, center: [-81.6326, 38.3498], zoom: 10, popup: { dockEnabled: false, dockOptions: { buttonEnabled: false } } });

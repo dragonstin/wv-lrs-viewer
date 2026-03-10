@@ -195,7 +195,7 @@
   <div id="bridgePanel" class="panel-base">
     <div class="panel-header"><h2 style="font-size: 18px; margin: 0;">Bridge Lookup</h2></div>
     <label for="inputBridgeID" style="font-size:14px; color:#111; margin-bottom:8px; display:block; font-weight:bold;">
-      Format: 20-77-103.65 or BARSID (e.g. 20A123)
+      Format: 20-77-103.65 or BARSID (e.g. 20A403)
     </label>
     <input type="text" id="inputBridgeID" class="search-input" placeholder="Bridge Number or BARSID" />
     <button id="btnFindBridge" class="action-btn">Find Bridge</button>
@@ -334,8 +334,8 @@
       });
       const wvImageryBasemap = new Basemap({ baseLayers: [wvImageryLayer], title: "WV Imagery (Leaf-Off)", id: "wv-imagery", thumbnailUrl: "https://services.wvgis.wvu.edu/arcgis/rest/services/Imagery_BaseMaps_EarthCover/wv_imagery_WVGISTC_leaf_off_mosaic/MapServer/info/thumbnail"});
 
-      const map = new Map({ basemap: enhancedBasemap });
-      const view = new MapView({ container: "viewDiv", map: map, center: [-81.6326, 38.3498], zoom: 10, popup: { dockEnabled: false, dockOptions: { buttonEnabled: false } } });
+      const map = new Map({ basemap: "gray-vector" });
+      const view = new MapView({ container: "viewDiv", map: map, center: [-80.600611, 39.014202], zoom: 7, popup: { dockEnabled: false, dockOptions: { buttonEnabled: false } } });
 
       const lrsLayerUrl = "https://services2.arcgis.com/xLpB90lOmCXYDAWo/arcgis/rest/services/Dominant_Routes/FeatureServer/20";
       const bridgeLayerUrl = "https://gis.transportation.wv.gov/arcgis/rest/services/Roads_And_Highways/Publication_LRS/FeatureServer/113";
@@ -367,6 +367,11 @@
 
       const bridgeLabelClass = { symbol: { type: "text", color: "#660000", haloColor: "white", haloSize: "1.5px", font: { size: 10, weight: "bold", family: "sans-serif" }, yoffset: 12 }, labelPlacement: "above-center", labelExpressionInfo: { expression: "$feature.BARSid" }, minScale: 10000 };
 
+      const routeShieldLayer = new TileLayer({
+      url: "https://map.transportation.wv.gov/arcgis/rest/services/Hosted/Routes_Map_Image_JPEG_Comp_75/MapServer",
+      title: "Route Shields"
+      });
+
       const layerBottom = new FeatureLayer({ url: lrsLayerUrl, renderer: routeRenderer, minScale: 100000, title: "Local Routes", legendEnabled: false, definitionExpression: "ROUTEID LIKE '__4%' OR ROUTEID LIKE '__0%' OR ROUTEID LIKE '__6%' OR ROUTEID LIKE '__7%' OR ROUTEID LIKE '__8%'" });
       const layerMiddle = new FeatureLayer({ url: lrsLayerUrl, renderer: routeRenderer, minScale: 2000000, title: "State Routes", legendEnabled: false, definitionExpression: "ROUTEID LIKE '__2%' OR ROUTEID LIKE '__3%'" });
       const layerTop = new FeatureLayer({ url: lrsLayerUrl, renderer: routeRenderer, minScale: 0, title: "Interstates", legendEnabled: false, definitionExpression: "ROUTEID LIKE '__1%'" });
@@ -374,7 +379,7 @@
       const streetLayer = new FeatureLayer({ url: streetLayerUrl, outFields: ["STREET_NAME"], visible: false, listMode: "hide", definitionExpression: "RH_TO_DATE IS NULL" });
       const bridgeLayer = new FeatureLayer({ url: bridgeLayerUrl, title: "Bridges", outFields: ["*"], definitionExpression: "RH_TO_DATE IS NULL", minScale: 50000, renderer: { type: "simple", symbol: { type: "simple-marker", style: "square", color: "#cc5200", outline: { color: "black", width: 1 }, size: 8 } }, labelingInfo: [bridgeLabelClass] });
 
-      map.addMany([layerBottom, layerMiddle, layerTop, legendDummy, streetLayer, bridgeLayer]);
+      map.addMany([layerBottom, layerMiddle, layerTop, routeShieldLayer, legendDummy, streetLayer, bridgeLayer]);
 
       view.ui.add(new Home({ view: view }), "top-left");
       const locateWidget = new Locate({ view: view });

@@ -187,7 +187,7 @@
       <button id="btnCloseInfo" class="close-icon" aria-label="Close Information Panel">&times;</button>
     </div>
     <div id="resultsList" aria-live="polite" aria-atomic="true">
-      <p style="color: #333333; font-weight: bold;">Click a route on the map or use the Search tool to see details.</p>
+      <p style="color: #333333; font-weight: bold;">Click a route on the map or use one of the search tools above.</p>
     </div>
     <button id="btnClear" class="clear-btn">Clear Selection</button>
   </div>
@@ -281,7 +281,7 @@
             </li>
             <li>
                 <span class="help-icon-box" aria-hidden="true"><span class="esri-icon-search" style="font-size: 18px;"></span></span>
-                <div><b>Address Search:</b> Zoom the map directly to a specific street, address, or city.</div>
+                <div><b>Address Search:</b> Zoom the map directly to a specific street, address, city, or GPS coordinate.</div>
             </li>
             <li>
                 <span class="help-icon-box" aria-hidden="true"><span class="custom-bridge-icon"></span></span>
@@ -306,7 +306,7 @@
         <h3 style="color:#004772;">Map Interaction Tips</h3>
         <ul style="padding-left: 20px;">
             <li style="margin-bottom: 10px;">Click any road on the map to query it and display the Route ID, Street Name, and exact Measure data.</li>
-            <li style="margin-bottom: 10px;">When viewing route details, click the <b>"Details"</b> button to load full RIL Database attribution.</li>
+            <li style="margin-bottom: 10px;">When viewing route details, click the <b>"Details"</b> button to load RIL Database attribution.</li>
             <li style="margin-bottom: 10px;">Hit <b>Esc</b> or click anywhere outside this dialog to dismiss it.</li>
         </ul>
       </div>
@@ -346,7 +346,7 @@
       const rillrsRouteUrl = "https://gis.transportation.wv.gov/api/rillrs/route/"; 
       const rillrsDetailsUrl = "https://gis.transportation.wv.gov/api/rillrs/details/";
 
-      const systemMap = { "1": "Interstate", "2": "US Highway", "3": "WV Route", "4": "Co. Route", "6": "State Park/Forest", "7": "FANS", "8": "HARP", "0": "MNS" };
+      const systemMap = { "1": "Interstate", "2": "US Route", "3": "WV Route", "4": "Co. Route", "6": "State Park/Forest", "7": "FANS", "8": "HARP", "0": "MNS" };
       const countyMap = { "01": "Barbour", "02": "Berkeley", "03": "Boone", "04": "Braxton", "05": "Brooke", "06": "Cabell", "07": "Calhoun", "08": "Clay", "09": "Doddridge", "10": "Fayette", "11": "Gilmer", "12": "Grant", "13": "Greenbrier", "14": "Hampshire", "15": "Hancock", "16": "Hardy", "17": "Harrison", "18": "Jackson", "19": "Jefferson", "20": "Kanawha", "21": "Lewis", "22": "Lincoln", "23": "Logan", "24": "McDowell", "25": "Marion", "26": "Marshall", "27": "Mason", "28": "Mercer", "29": "Mineral", "30": "Mingo", "31": "Monongalia", "32": "Monroe", "33": "Morgan", "34": "Nicholas", "35": "Ohio", "36": "Pendleton", "37": "Pleasants", "38": "Pocahontas", "39": "Preston", "40": "Putnam", "41": "Raleigh", "42": "Randolph", "43": "Ritchie", "44": "Roane", "45": "Summers", "46": "Taylor", "47": "Tucker", "48": "Tyler", "49": "Upshur", "50": "Wayne", "51": "Webster", "52": "Wetzel", "53": "Wirt", "54": "Wood", "55": "Wyoming" };
 
       const routeRenderer = {
@@ -354,28 +354,28 @@
         valueExpression: `var sys = Mid($feature.ROUTEID, 2, 1); var supp = Mid($feature.ROUTEID, 9, 2); if (supp == '24') return sys + '_P'; return sys;`,
         uniqueValueInfos: [
           { value: "1", symbol: { type: "simple-line", color: [0, 80, 200, 1], width: 3 }, label: "Interstate" },
-          { value: "2", symbol: { type: "simple-line", color: [200, 0, 0, 1], width: 2.5 }, label: "US Highway" },
+          { value: "2", symbol: { type: "simple-line", color: [200, 0, 0, 1], width: 2.5 }, label: "US Route" },
           { value: "3", symbol: { type: "simple-line", color: [0, 0, 0, 1], width: 2 }, label: "WV Route" },
-          { value: "4", symbol: { type: "simple-line", color: [100, 100, 100, 1], width: 1.5 }, label: "County Route" },
+          { value: "4", symbol: { type: "simple-line", color: [100, 100, 100, 1], width: 1.75 }, label: "County Route" },
           { value: "6", symbol: { type: "simple-line", color: [115, 38, 0, 1], width: 1.5 }, label: "SP/SF Route" },
           { value: "7", symbol: { type: "simple-line", color: [150, 100, 80, 1], width: 1.5 }, label: "FANS" },
           { value: "8", symbol: { type: "simple-line", color: [0, 92, 230, 1], width: 1.5 }, label: "HARP" },
-          { value: "0", symbol: { type: "simple-line", color: [120, 120, 120, 1], width: 1 }, label: "MNS" }
+          { value: "0", symbol: { type: "simple-line", color: [120, 120, 120, 1], width: 0.75 }, label: "MNS" }
         ],
-        defaultSymbol: { type: "simple-line", color: [100, 100, 100, 0.8], width: 1 }
+        // defaultSymbol: { type: "simple-line", color: [100, 100, 100, 0.8], width: 1 } - Default symbol line has been removed to avoid confusion with the "Other Routes" layer in the legend, which uses the same symbol. All features should match one of the unique value infos, so a default symbol is not necessary.
       };
 
-      const bridgeLabelClass = { symbol: { type: "text", color: "#660000", haloColor: "white", haloSize: "1.5px", font: { size: 10, weight: "bold", family: "sans-serif" }, yoffset: 12 }, labelPlacement: "above-center", labelExpressionInfo: { expression: "$feature.BARSid" }, minScale: 10000 };
+      const bridgeLabelClass = { symbol: { type: "text", color: "#660000", haloColor: "white", haloSize: "1.5px", font: { size: 10, weight: "bold", family: "sans-serif" }, yoffset: 2 }, labelPlacement: "above-center", labelExpressionInfo: { expression: "$feature.BARSid" }, minScale: 10000 };
 
       const routeShieldLayer = new TileLayer({
-      url: "https://map.transportation.wv.gov/arcgis/rest/services/Hosted/Routes_Map_Image_JPEG_Comp_75/MapServer",
+      url: "https://map.transportation.wv.gov/arcgis/rest/services/Hosted/Route_Shields/MapServer",
       title: "Route Shields"
       });
 
-      const layerBottom = new FeatureLayer({ url: lrsLayerUrl, renderer: routeRenderer, minScale: 100000, title: "Local Routes", legendEnabled: false, definitionExpression: "ROUTEID LIKE '__4%' OR ROUTEID LIKE '__0%' OR ROUTEID LIKE '__6%' OR ROUTEID LIKE '__7%' OR ROUTEID LIKE '__8%'" });
-      const layerMiddle = new FeatureLayer({ url: lrsLayerUrl, renderer: routeRenderer, minScale: 2000000, title: "State Routes", legendEnabled: false, definitionExpression: "ROUTEID LIKE '__2%' OR ROUTEID LIKE '__3%'" });
+      const layerBottom = new FeatureLayer({ url: lrsLayerUrl, renderer: routeRenderer, minScale: 100000, title: "Other Routes", legendEnabled: false, definitionExpression: "ROUTEID LIKE '__4%' OR ROUTEID LIKE '__0%' OR ROUTEID LIKE '__6%' OR ROUTEID LIKE '__7%' OR ROUTEID LIKE '__8%'" });
+      const layerMiddle = new FeatureLayer({ url: lrsLayerUrl, renderer: routeRenderer, minScale: 2000000, title: "US and State Routes", legendEnabled: false, definitionExpression: "ROUTEID LIKE '__2%' OR ROUTEID LIKE '__3%'" });
       const layerTop = new FeatureLayer({ url: lrsLayerUrl, renderer: routeRenderer, minScale: 0, title: "Interstates", legendEnabled: false, definitionExpression: "ROUTEID LIKE '__1%'" });
-      const legendDummy = new FeatureLayer({ url: lrsLayerUrl, title: "West Virginia Routes", renderer: routeRenderer, definitionExpression: "1=0", listMode: "hide", legendEnabled: true });
+      const legendDummy = new FeatureLayer({ url: lrsLayerUrl, title: "Routes", renderer: routeRenderer, definitionExpression: "1=0", listMode: "hide", legendEnabled: true });
       const streetLayer = new FeatureLayer({ url: streetLayerUrl, outFields: ["STREET_NAME"], visible: false, listMode: "hide", definitionExpression: "RH_TO_DATE IS NULL" });
       const bridgeLayer = new FeatureLayer({ url: bridgeLayerUrl, title: "Bridges", outFields: ["*"], definitionExpression: "RH_TO_DATE IS NULL", minScale: 50000, renderer: { type: "simple", symbol: { type: "simple-marker", style: "square", color: "#cc5200", outline: { color: "black", width: 1 }, size: 8 } }, labelingInfo: [bridgeLabelClass] });
 
@@ -397,6 +397,7 @@
       const bridgeExpand = new Expand({ view: view, content: document.getElementById("bridgePanel"), expandIconClass: "custom-bridge-icon", expandTooltip: "Find Bridge", group: "top-right" });
       const builderExpand = new Expand({ view: view, content: document.getElementById("builderPanel"), expandIcon: "hammer", expandTooltip: "Route Builder", group: "top-right" });
       const contextExpand = new Expand({ view: view, content: document.getElementById("contextPanel"), expandIconClass: "esri-icon-polyline", expandTooltip: "Find Measure", group: "top-right" });
+      window.contextExpand = contextExpand;
 
       const wvExtent = new Extent({ xmin: -9199945, ymin: 4467222, xmax: -8651646, ymax: 4959210, spatialReference: { wkid: 3857 } });
       const addressSearch = new Search({ view: view, popupEnabled: false, includeDefaultSources: false, sources: [{ url: "https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer", singleLineFieldName: "SingleLine", name: "WV Address Search", placeholder: "Search West Virginia Address", countryCode: "US", filter: { geometry: wvExtent } }] });
@@ -476,10 +477,10 @@
       function createLabel(pt, txt) { return new Graphic({ geometry:pt, symbol: { type:"text", color:"#660000", haloColor:"white", haloSize:"1.5px", text:txt, yoffset:10, font:{size:10, weight:"bold", family:"sans-serif"} } }); }
       function parseRouteInfo(id) { if (!id || id.length < 7) return { number: "?", system: "Unknown" }; let numStr = parseInt(id.substring(3,7)).toString(); const sub = parseInt(id.substring(7,9)); if (sub > 0) numStr += "/" + sub; const sysCode = id.substring(2,3); const supp = id.substring(9,11); let sysName = systemMap[sysCode] || "System " + sysCode; if (supp === '24') sysName = "Proposed " + sysName; return { number: numStr, system: sysName }; }
 
-      window.highlightRoute = (idx) => { view.graphics.removeAll(); if(window.currentData && window.currentData[idx]) { const d = window.currentData[idx]; view.graphics.add(new Graphic({ geometry: d.graphic.geometry, symbol: { type:"simple-line", color:[0,100,200,1], width:5 } })); if(window.clickLoc && d.snap) { view.graphics.add(new Graphic({ geometry: new Polyline({paths:[[[window.clickLoc.x, window.clickLoc.y], [d.snap.x, d.snap.y]]], spatialReference:view.spatialReference}), symbol:{type:"simple-line", color:[50,50,50], style:"dash"} })); view.graphics.add(new Graphic({ geometry: d.snap, symbol: { type:"simple-marker", color:[0,100,200,1], outline:{color:"black"}, size:8 } })); } } };
+      window.highlightRoute = (idx) => { view.graphics.removeAll(); if(window.currentData && window.currentData[idx]) { const d = window.currentData[idx]; view.graphics.add(new Graphic({ geometry: d.graphic.geometry, symbol: { type:"simple-line", color:[0,255,255,1], width:5 } })); if(window.clickLoc && d.snap) { view.graphics.add(new Graphic({ geometry: new Polyline({paths:[[[window.clickLoc.x, window.clickLoc.y], [d.snap.x, d.snap.y]]], spatialReference:view.spatialReference}), symbol:{type:"simple-line", color:[50,50,50], style:"dash"} })); view.graphics.add(new Graphic({ geometry: d.snap, symbol: { type:"simple-marker", color:[0,255,255,1], outline:{color:"black"}, size:8 } })); } } };
       window.clearHighlight = () => { view.graphics.removeAll(); };
       window.zoomToBridge = (oid) => { if (window.currentBridgeResults) { const b = window.currentBridgeResults.find(f => f.attributes.OBJECTID === oid); if (b) view.goTo({ target: b.geometry, zoom: 18 }); } };
-      window.highlightBridge = (idx) => { window.clearHighlightBridge(); if(window.currentBridgeResults && window.currentBridgeResults[idx]) { const b = window.currentBridgeResults[idx]; const h = new Graphic({ geometry: b.geometry, symbol: { type: "simple-marker", style: "diamond", color: [0, 100, 200, 0.9], size: 18, outline: { width: 2, color: "black" } } }); h.isBridgeHighlight = true; view.graphics.add(h); } };
+      window.highlightBridge = (idx) => { window.clearHighlightBridge(); if(window.currentBridgeResults && window.currentBridgeResults[idx]) { const b = window.currentBridgeResults[idx]; const h = new Graphic({ geometry: b.geometry, symbol: { type: "simple-marker", style: "diamond", color: [0, 255, 255, 0.9], size: 18, outline: { width: 2, color: "black" } } }); h.isBridgeHighlight = true; view.graphics.add(h); } };
       window.clearHighlightBridge = () => { const highlights = view.graphics.filter(g => g.isBridgeHighlight); view.graphics.removeMany(highlights); };
 
       async function resolveLocation(input) {
@@ -576,16 +577,16 @@
 
              if (Math.abs(safeMax - safeMin) < 0.002) {
                  const p = getPointAtMeasure(routeGeoForDraw, safeMin);
-                 if(p) { view.goTo({ target: p, zoom: 16 }); view.graphics.add(new Graphic({ geometry: p, symbol: { type: "simple-marker", color: [0,71,114,1], size: 12, outline: {color:"white", width: 2} } })); view.graphics.add(createLabel(p, safeMin.toFixed(3))); }
+                 if(p) { view.goTo({ target: p, zoom: 16 }); view.graphics.add(new Graphic({ geometry: p, symbol: { type: "simple-marker", color: [0,255,255,1], size: 12, outline: {color:"white", width: 2} } })); view.graphics.add(createLabel(p, safeMin.toFixed(3))); }
              } else {
                  if (!bmpInput && !empInput) {
-                      view.goTo(routeGeoForDraw); view.graphics.add(new Graphic({ geometry: routeGeoForDraw, symbol: { type: "simple-line", color: [0, 71, 114, 1], width: 6 } }));
+                      view.goTo(routeGeoForDraw); view.graphics.add(new Graphic({ geometry: routeGeoForDraw, symbol: { type: "simple-line", color: [0, 255, 255, 1], width: 6 } }));
                       if(bounds.minM !== Infinity) view.graphics.add(createLabel(getPointAtMeasure(routeGeoForDraw, bounds.minM), safeMin.toFixed(3)));
                       if(bounds.maxM !== -Infinity) view.graphics.add(createLabel(getPointAtMeasure(routeGeoForDraw, bounds.maxM), safeMax.toFixed(3)));
                  } else {
                       const seg = sliceRouteByMeasure(routeGeoForDraw, safeMin, safeMax);
                       if(seg) {
-                          view.goTo(seg); view.graphics.add(new Graphic({ geometry: seg, symbol: { type: "simple-line", color: [0, 71, 114, 1], width: 6 } })); 
+                          view.goTo(seg); view.graphics.add(new Graphic({ geometry: seg, symbol: { type: "simple-line", color: [0, 255, 255, 1], width: 6 } })); 
                           const p1 = getPointAtMeasure(routeGeoForDraw, safeMin); const p2 = getPointAtMeasure(routeGeoForDraw, safeMax);
                           if(p1) view.graphics.add(createLabel(p1, safeMin.toFixed(3))); if(p2) view.graphics.add(createLabel(p2, safeMax.toFixed(3)));
                       }
@@ -678,6 +679,21 @@
           if (event.key === "Escape") { document.getElementById("detailsModal").style.display = "none"; document.getElementById("helpModal").style.display = "none"; }
       });
 
+      // ADDED: Function to send route ID to the Find Measure tool
+      window.applyToFindMeasure = (routeId) => {
+          document.getElementById("ctxRouteID").value = routeId;
+          document.getElementById("ctxBMPRef").value = ""; // Clear old start measure
+          document.getElementById("ctxEMPRef").value = ""; // Clear old end measure
+          
+          const status = document.getElementById("ctxStatus");
+          if(status) status.innerHTML = `<span style="color:#004772;">Route ${routeId} applied.</span>`;
+          
+          // Open the Find Measure widget automatically
+          if (window.contextExpand) {
+              window.contextExpand.expanded = true;
+          }
+      };
+
       view.on("click", (event) => {
         if (pickingTarget) {
             event.stopPropagation();
@@ -692,11 +708,23 @@
         const streetQuery = new Query({ geometry: event.mapPoint, distance: 30, units: "meters", spatialRelationship: "intersects", outFields: ["STREET_NAME"], returnGeometry: true, where: "RH_TO_DATE IS NULL" });
         
         Promise.all([query.executeQueryJSON(lrsLayerUrl, mQuery), streetLayer.queryFeatures(streetQuery)]).then(async ([mResults, streetResults]) => {
-          if (mResults.features.length === 0) { document.getElementById("resultsList").innerHTML = "<p>No routes found.</p>"; return; }
+          
+          // 1. Calculate Lat/Long and format the HTML string
+          const geoClickPt = webMercatorUtils.webMercatorToGeographic(event.mapPoint);
+          const coordHtml = `<div style="margin-bottom: 10px; font-size: 15px; background-color: #e6e6e6; padding: 8px; border-radius: 4px; border-left: 5px solid #333333; color: #111;"><b>Lat/Long:</b> ${geoClickPt.latitude.toFixed(6)}, ${geoClickPt.longitude.toFixed(6)}</div>`;
+
+          // 2. Add coordHtml to the "No routes found" message
+          if (mResults.features.length === 0) { 
+              document.getElementById("resultsList").innerHTML = coordHtml + "<p>No routes found.</p>"; 
+              return; 
+          }
+          
           const processed = mResults.features.map(g => { const c = getMeasureOnFeatureArray([g], event.mapPoint); return { graphic:g, id:g.attributes.ROUTEID, m:c ? c.m : null, dist:c ? c.distance : Infinity, snap:c ? c.snapPoint : null }; });
           const best = {}; processed.forEach(i => { if(i.m !== null && (!best[i.id] || i.dist < best[i.id].dist)) best[i.id] = i; });
           const uniq = Object.values(best).sort((a,b) => a.dist - b.dist);
-          let html = "";
+          
+          // 3. Initialize the popup's html variable with the coordinates instead of an empty string
+          let html = coordHtml;
           
           for(let i=0; i<uniq.length; i++) {
               const item = uniq[i]; const info = parseRouteInfo(item.id); let sName = "Unknown";
@@ -705,15 +733,24 @@
                  streetResults.features.forEach(s => { const intersection = geometryEngine.intersect(routeBuffer, s.geometry); if (intersection) { const len = geometryEngine.planarLength(intersection, "meters"); if (len > bestOverlap) { bestOverlap = len; sName = s.attributes.STREET_NAME || "Unnamed"; } } });
                  if (bestOverlap <= 1) { let sDist = Infinity; streetResults.features.forEach(s => { const d = geometryEngine.distance(item.snap, s.geometry); if(d < sDist) { sDist=d; sName=s.attributes.STREET_NAME||"Unnamed"; } }); }
               }
-              const safeM = (item.m || 0); let showDetails = true;
+              let safeM = (item.m || 0);
+              if (Math.abs(safeM) < 0.0005) safeM = 0; 
+              let showDetails = true;
               try { const checkUrl = `${rillrsRouteUrl}${item.id}?_=${new Date().getTime()}`; const checkRes = await fetch(checkUrl); const checkData = await checkRes.json(); if (!checkData || checkData.length === 0) showDetails = false; } catch(e) { showDetails = false; }
+
+              // Convert the distance from meters to feet
+              const distFt = (item.dist * 3.28084).toFixed(1);
 
               html += `<div class="route-card" onmouseover="window.highlightRoute(${i})" onmouseout="window.clearHighlight()">
                 <div style="font-weight:bold; font-size:16px;">${info.system} ${info.number}</div>
-                <div><b>ID:</b> ${item.id}</div>
-                <div><b>Street:</b> ${sName}</div>
+                <div><b>Route ID:</b> ${item.id}</div>
+                <div><b>Street Name:</b> ${sName}</div>
+                <div><b>Click Distance:</b> ${distFt} ft</div>
                 <div><span class="measure-badge">MP: ${safeM.toFixed(3)}</span></div>
-                ${showDetails ? `<button class="details-btn" aria-label="View Route Details for ${item.id}" onclick="window.fetchRilDetails('${item.id}', ${safeM})">Details</button>` : ''}
+                <div style="margin-top: 8px;">
+                    ${showDetails ? `<button class="details-btn" aria-label="View Route Details for ${item.id}" onclick="window.fetchRilDetails('${item.id}', ${safeM})">Details</button>` : ''}
+                    <button class="details-btn" style="background-color: #595959;" title="Send Route ID to Find Measure Widget" onclick="window.applyToFindMeasure('${item.id}')">Use in Find Measure</button>
+                </div>
               </div>`;
           }
           document.getElementById("resultsList").innerHTML = html; window.currentData = uniq; window.clickLoc = event.mapPoint;
@@ -735,7 +772,7 @@
           bridgeResults.features.forEach((b, idx) => {
              const attr = b.attributes; const barsId = attr.BARSid || attr.OBJECTID; 
              html += `<div class="bridge-card" onclick="window.zoomToBridge(${attr.OBJECTID})" onmouseover="window.highlightBridge(${idx})" onmouseout="window.clearHighlightBridge()"><div style="font-weight:bold; font-size:16px;">Bridge Found</div><div><b>BARS ID:</b> ${barsId}</div><div><b>Ref:</b> ${rawInput}</div></div>`;
-             view.graphics.add(new Graphic({ geometry: b.geometry, symbol: { type: "simple-marker", style: "diamond", color: [0, 71, 114, 0.9], size: 14, outline: { width: 2, color: "white" } } }));
+             view.graphics.add(new Graphic({ geometry: b.geometry, symbol: { type: "simple-marker", style: "diamond", color: [0, 255, 255, 0.9], size: 14, outline: { width: 2, color: "black" } } }));
           });
           if (searchArea) { view.graphics.add(new Graphic({ geometry: searchArea, symbol: { type: "simple-fill", color: [0, 71, 114, 0.1], outline: { color: [0, 71, 114, 1], style: "dash" } } })); view.goTo(searchArea.extent.expand(2)); } 
           else if (bridgeResults.features.length === 1) { view.goTo({ target: bridgeResults.features[0].geometry, zoom: 16 }); } 
@@ -785,7 +822,7 @@
 
       function resetDropdown(id, placeholder) { const sel = document.getElementById(id); sel.innerHTML = ""; sel.disabled = true; if (placeholder) { const opt = document.createElement("option"); opt.text = placeholder; opt.value = ""; sel.add(opt); } }
 
-      document.getElementById("btnClear").addEventListener("click", () => { view.graphics.removeAll(); document.getElementById("resultsList").innerHTML = "<p style='color: #333333; font-weight: bold;'>Click a route on the map or use the Search tool.</p>"; });
+      document.getElementById("btnClear").addEventListener("click", () => { view.graphics.removeAll(); document.getElementById("resultsList").innerHTML = "<p style='color: #333333; font-weight: bold;'>Click a route on the map or use one of the search tools above.</p>"; });
       document.getElementById("btnCloseInfo").addEventListener("click", () => { document.getElementById("infoPanel").style.display = "none"; view.graphics.removeAll(); });
 
     });

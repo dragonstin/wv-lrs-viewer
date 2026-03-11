@@ -373,7 +373,7 @@
       });
 
       const layerBottom = new FeatureLayer({ url: lrsLayerUrl, renderer: routeRenderer, minScale: 100000, title: "Other Routes", legendEnabled: false, definitionExpression: "ROUTEID LIKE '__4%' OR ROUTEID LIKE '__0%' OR ROUTEID LIKE '__6%' OR ROUTEID LIKE '__7%' OR ROUTEID LIKE '__8%'" });
-      const layerMiddle = new FeatureLayer({ url: lrsLayerUrl, renderer: routeRenderer, minScale: 2000000, title: "US and State Routes", legendEnabled: false, definitionExpression: "ROUTEID LIKE '__2%' OR ROUTEID LIKE '__3%'" });
+      const layerMiddle = new FeatureLayer({ url: lrsLayerUrl, renderer: routeRenderer, minScale: 0, title: "US and State Routes", legendEnabled: false, definitionExpression: "ROUTEID LIKE '__2%' OR ROUTEID LIKE '__3%'" });
       const layerTop = new FeatureLayer({ url: lrsLayerUrl, renderer: routeRenderer, minScale: 0, title: "Interstates", legendEnabled: false, definitionExpression: "ROUTEID LIKE '__1%'" });
       const legendDummy = new FeatureLayer({ url: lrsLayerUrl, title: "Routes", renderer: routeRenderer, definitionExpression: "1=0", listMode: "hide", legendEnabled: true });
       const streetLayer = new FeatureLayer({ url: streetLayerUrl, outFields: ["STREET_NAME"], visible: false, listMode: "hide", definitionExpression: "RH_TO_DATE IS NULL" });

@@ -60,6 +60,7 @@
     .close-icon:hover, .close-icon:focus { color: #000; background-color: #e6e6e6; }
 
     #builderPanel, #bridgePanel, #contextPanel { width: 320px; background: white; }
+    #versionPanel { width: 340px; background: white; max-height: 400px; }
 
     /* Inputs/Selects - Min 44px height for Target Size AAA */
     .search-input, .builder-select {
@@ -137,6 +138,15 @@
     .modal-list li { padding: 8px 0; border-bottom: 1px solid #e6e6e6; display: flex; flex-wrap: wrap; }
     .modal-list li b { display: inline-block; width: 50%; color: #222222; min-width: 150px; }
     .modal-list li span { width: 50%; color: #000000; min-width: 150px; }
+
+    /* Version History List Styles */
+    .version-list-container { list-style: none; padding: 0; margin: 0; }
+    .version-item { border-bottom: 1px solid #e6e6e6; padding: 12px 0; }
+    .version-item:last-child { border-bottom: none; }
+    .version-title { font-weight: bold; color: #004772; font-size: 16px; margin-bottom: 4px; }
+    .version-date { font-size: 13px; color: #595959; margin-bottom: 8px; }
+    .version-changes { margin: 0; padding-left: 20px; font-size: 14px; color: #111; }
+    .version-changes li { margin-bottom: 4px; }
 
     .details-btn {
       margin-top: 10px; padding: 8px 16px; background-color: #004772; color: #ffffff;
@@ -246,6 +256,15 @@
     <select id="selDir" class="builder-select" disabled></select>
     
     <button id="btnBuild" class="action-btn" disabled>Build & Locate</button>
+  </div>
+
+  <div id="versionPanel" class="panel-base">
+    <div class="panel-header" style="margin-bottom: 0;">
+      <h2 style="font-size: 18px; margin: 0;">Version History</h2>
+    </div>
+    <div id="versionContent" aria-live="polite" style="margin-top: 15px;">
+      <p style="color: #333333;">Loading version history...</p>
+    </div>
   </div>
 
   <div id="detailsModal" role="dialog" aria-modal="true" aria-labelledby="detailsModalTitle">
@@ -394,6 +413,10 @@
       helpBtn.addEventListener("click", () => { document.getElementById("helpModal").style.display = "block"; document.querySelector('.close-icon-help').focus(); });
       view.ui.add(helpBtn, "top-left");
 
+      // Version History expand widget directly under the Help button
+      const versionExpand = new Expand({ view: view, content: document.getElementById("versionPanel"), expandIconClass: "esri-icon-time-clock", expandTooltip: "Version History", group: "top-left" });
+      view.ui.add(versionExpand, "top-left");
+
       const bridgeExpand = new Expand({ view: view, content: document.getElementById("bridgePanel"), expandIconClass: "custom-bridge-icon", expandTooltip: "Find Bridge", group: "top-right" });
       const builderExpand = new Expand({ view: view, content: document.getElementById("builderPanel"), expandIcon: "hammer", expandTooltip: "Route Builder", group: "top-right" });
       const contextExpand = new Expand({ view: view, content: document.getElementById("contextPanel"), expandIconClass: "esri-icon-polyline", expandTooltip: "Find Measure", group: "top-right" });
@@ -409,6 +432,43 @@
       const llExpand = new Expand({ view: view, content: new LayerList({ view: view }), expandTooltip: "Layers", group: "top-right" });
       
       view.ui.add([builderExpand, contextExpand, addressExpand, bridgeExpand, llExpand, bgExpand, legendExpand], "top-right");
+
+      // Fetch and render version history JSON from Google Apps Script Web App
+      async function loadVersionHistory() {
+        const container = document.getElementById("versionContent");
+        
+        const WEB_APP_URL = 'YOUR_WEB_APP_URL_HERE';
+        
+        try {
+            const response = await fetch("https://script.google.com/macros/s/AKfycbxSNeCmAPaSL2RVoQbOGyYQKwmHfhbAktpBzj-EpN9Le-1CV82-cVPs0YCJmQOt0WNqXA/exec");
+            if (!response.ok) throw new Error("Network response was not ok");
+            const data = await response.json();
+            
+            if (!data || data.length === 0 || data.error) {
+                container.innerHTML = "<p>No version history available.</p>";
+                return;
+            }
+
+            let html = '<ul class="version-list-container">';
+            data.forEach(item => {
+                const changesHtml = (item.changes || []).map(change => `<li>${change}</li>`).join('');
+                html += `
+                <li class="version-item">
+                    <div class="version-title">Version ${item.version || 'Unknown'}</div>
+                    <div class="version-date">${item.date || ''}</div>
+                    <ul class="version-changes">${changesHtml}</ul>
+                </li>`;
+            });
+            html += '</ul>';
+            container.innerHTML = html;
+        } catch (error) {
+            container.innerHTML = `<p style="color: #a94442;">Could not load version history.</p>`;
+            console.error("Version history fetch error:", error);
+        }
+      }
+      
+      // Execute the fetch
+      loadVersionHistory();
 
       function getMeasureOnFeatureArray(features, p) { 
         let bestD = Infinity, bestM = null, bestP = null;

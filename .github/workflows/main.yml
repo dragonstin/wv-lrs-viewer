@@ -1,0 +1,19 @@
+name: Notify Google Chat on Main Push
+
+# This tells GitHub to run this script ONLY when code is pushed to main
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  notify-deploy-team:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Webhook to Google Chat
+        run: |
+          curl -X POST "${{ secrets.GOOGLE_CHAT_WEBHOOK }}" \
+          -H "Content-Type: application/json" \
+          -d '{
+            "text": "🚀 *New Geometry and Measures Map Update Ready!*\n\nCode has been pushed to the `main` branch of the G2M repository.\n\n*Commit Details:* ${{ github.event.head_commit.message }}\n*Pushed By:* ${{ github.event.head_commit.author.name }}\n\n*Hey IIS Team:* The latest code is ready to be pulled down and deployed to the IIS server!"
+          }'
